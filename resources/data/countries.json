@@ -1,0 +1,8 @@
+[
+    {"name": "American", "phone_code": "+1"},
+    {"name": "Englishman", "phone_code": "+44"},
+    {"name": "Indian", "phone_code": "+91"},
+    {"name": "Canadian", "phone_code": "+1"},
+    {"name": "Australian", "phone_code": "+61"},
+    {"name": "Sri Lankan", "phone_code": "+94"}
+]

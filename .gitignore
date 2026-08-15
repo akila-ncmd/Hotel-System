@@ -1,0 +1,33 @@
+/.phpunit.cache
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+/.fleet
+/.idea
+/.vscode
+
+# Claude Code
+/.claude
+CLAUDE.md
+
+# Database dumps — contain real personal data (names, emails, phone numbers, password hashes)
+*.sql
+
+# Generated reports
+/storage/app/reports
+
+# Stray shell-history artifacts
+/cd
+/php
