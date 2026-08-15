@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use Illuminate\Console\Command;
+use App\Models\Branch;
 use App\Models\Reservation;
 use App\Models\Billing;
 use App\Models\Room;
@@ -61,86 +62,110 @@ class ProcessNoShowsAndReport extends Command
                 $noShowBillings[] = $billing;
             }
 
-            // Calculate occupancy for previous night
-            $occupiedRooms = Reservation::where('check_in_date', '<=', $yesterday)
-                ->where('check_out_date', '>', $yesterday)
-                ->where('status', 'checked_in')
-                ->count();
+            // Reports are per-branch: `reports.branch_id` is NOT NULL, and a manager should
+            // only ever receive figures for the branch they belong to. Build one report per
+            // branch and mail it to that branch's managers.
+            $totalNoShows = count($noShowBillings);
+            $branchesReported = 0;
 
-            $totalRooms = Room::count();
-            $occupancyRate = $totalRooms > 0 ? ($occupiedRooms / $totalRooms) * 100 : 0;
+            foreach (Branch::all() as $branch) {
+                // Occupancy for the previous night at this branch.
+                $occupiedRooms = Reservation::where('branch_id', $branch->id)
+                    ->where('check_in_date', '<=', $yesterday)
+                    ->where('check_out_date', '>', $yesterday)
+                    ->where('status', 'checked_in')
+                    ->count();
 
-            // Calculate revenue from previous night's check-outs and no-shows
-            $checkOutRevenue = Billing::whereHas('reservation', function ($query) use ($yesterday) {
-                    $query->where('check_out_date', $yesterday)
-                          ->where('status', 'checked_out');
-                })
-                ->where('payment_status', 'paid')
-                ->sum('total_amount');
+                $totalRooms = Room::where('branch_id', $branch->id)->count();
+                $occupancyRate = $totalRooms > 0 ? ($occupiedRooms / $totalRooms) * 100 : 0;
 
-            $noShowRevenue = Billing::whereHas('reservation', function ($query) use ($yesterday) {
-                    $query->where('check_in_date', $yesterday)
-                          ->where('status', 'no_show');
-                })
-                ->where('payment_status', 'pending')
-                ->whereDate('created_at', $today)
-                ->sum('total_amount');
+                // Revenue from the previous night's check-outs and no-shows at this branch.
+                $checkOutRevenue = Billing::where('branch_id', $branch->id)
+                    ->whereHas('reservation', function ($query) use ($yesterday) {
+                        $query->where('check_out_date', $yesterday)
+                              ->where('status', 'checked_out');
+                    })
+                    ->where('payment_status', 'paid')
+                    ->sum('total_amount');
 
-            $totalRevenue = $checkOutRevenue + $noShowRevenue;
+                $noShowRevenue = Billing::where('branch_id', $branch->id)
+                    ->whereHas('reservation', function ($query) use ($yesterday) {
+                        $query->where('check_in_date', $yesterday)
+                              ->where('status', 'no_show');
+                    })
+                    ->where('payment_status', 'pending')
+                    ->whereDate('created_at', $today)
+                    ->sum('total_amount');
 
-            // Prepare data for report
-            $data = [
-                'date' => $yesterday,
-                'occupied_rooms' => $occupiedRooms,
-                'total_rooms' => $totalRooms,
-                'occupancy_rate' => number_format($occupancyRate, 2),
-                'check_out_revenue' => number_format($checkOutRevenue, 2),
-                'no_show_revenue' => number_format($noShowRevenue, 2),
-                'total_revenue' => number_format($totalRevenue, 2),
-                'no_shows' => count($noShowBillings),
-                'pdfPath' => 'reports/daily_report_' . $yesterday . '.pdf',
-            ];
+                $totalRevenue = $checkOutRevenue + $noShowRevenue;
 
-            // Generate PDF
-            $pdf = Pdf::loadView('reports.daily', $data);
-            $pdfPath = $data['pdfPath'];
-            Storage::put($pdfPath, $pdf->output());
+                $branchNoShows = Reservation::where('branch_id', $branch->id)
+                    ->where('status', 'no_show')
+                    ->where('check_in_date', $yesterday)
+                    ->count();
 
-            // Email report to manager
-            $managers = \App\Models\User::where('role', 'manager')->get();
-            if ($managers->isEmpty()) {
-                Log::warning('No managers found to send daily report', ['date' => $yesterday]);
-                // Fallback: Store report without emailing
-                $this->info("Report generated but no managers found for {$yesterday}");
-            } else {
-                foreach ($managers as $manager) {
-                    try {
-                        Mail::to($manager->email)->send(new DailyManagerReport($data, $pdfPath));
-                    } catch (\Exception $e) {
-                        Log::warning("Failed to send report to manager {$manager->email}", [
-                            'error' => $e->getMessage()
-                        ]);
+                $data = [
+                    'date' => $yesterday,
+                    'branch' => $branch->name,
+                    'occupied_rooms' => $occupiedRooms,
+                    'total_rooms' => $totalRooms,
+                    'occupancy_rate' => number_format($occupancyRate, 2),
+                    'check_out_revenue' => number_format($checkOutRevenue, 2),
+                    'no_show_revenue' => number_format($noShowRevenue, 2),
+                    'total_revenue' => number_format($totalRevenue, 2),
+                    'no_shows' => $branchNoShows,
+                    'pdfPath' => 'reports/daily_report_' . $branch->id . '_' . $yesterday . '.pdf',
+                ];
+
+                $pdf = Pdf::loadView('reports.daily', $data);
+                $pdfPath = $data['pdfPath'];
+                Storage::put($pdfPath, $pdf->output());
+
+                // Persist the report. updateOrCreate keeps the command idempotent, so a
+                // re-run on the same day corrects the row instead of duplicating it.
+                \App\Models\Report::updateOrCreate(
+                    [
+                        'branch_id' => $branch->id,
+                        'report_date' => $yesterday,
+                    ],
+                    [
+                        'total_occupancy' => $occupiedRooms,
+                        'total_revenue' => $totalRevenue,
+                        'no_show_count' => $branchNoShows,
+                    ]
+                );
+
+                $managers = \App\Models\User::where('role', 'manager')
+                    ->where('branch_id', $branch->id)
+                    ->get();
+
+                if ($managers->isEmpty()) {
+                    Log::warning('No managers found for branch daily report', [
+                        'branch_id' => $branch->id,
+                        'date' => $yesterday,
+                    ]);
+                } else {
+                    foreach ($managers as $manager) {
+                        try {
+                            Mail::to($manager->email)->send(new DailyManagerReport($data, $pdfPath));
+                        } catch (\Exception $e) {
+                            Log::warning("Failed to send report to manager {$manager->email}", [
+                                'error' => $e->getMessage()
+                            ]);
+                        }
                     }
                 }
+
+                $branchesReported++;
             }
 
-            // Store report in database
-            \App\Models\Report::create([
-                'branch_id' => null, // System-wide report
-                'report_date' => $yesterday,
-                'total_occupancy' => $occupiedRooms,
-                'total_revenue' => $totalRevenue,
-                'no_show_count' => count($noShowBillings)
-            ]);
-
-            Log::info('No-shows and daily report processed', [
+            Log::info('No-shows and daily reports processed', [
                 'date' => $yesterday,
-                'no_shows' => count($noShowBillings),
-                'occupancy_rate' => $occupancyRate,
-                'total_revenue' => $totalRevenue
+                'no_shows' => $totalNoShows,
+                'branches_reported' => $branchesReported,
             ]);
 
-            $this->info("Processed {$data['no_shows']} no-shows and generated report for {$yesterday}");
+            $this->info("Processed {$totalNoShows} no-shows and generated reports for {$branchesReported} branch(es) for {$yesterday}");
         } catch (\Exception $e) {
             Log::error('Error in ProcessNoShowsAndReport', [
                 'error' => $e->getMessage(),

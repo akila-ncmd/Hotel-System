@@ -115,11 +115,11 @@
             const endDate = endDateInput.value;
 
             if (startDate && endDate) {
-                dateRangeInput.value = ${startDate} - ${endDate};
+                dateRangeInput.value = `${startDate} - ${endDate}`;
             } else if (startDate) {
-                dateRangeInput.value = ${startDate} - ${startDate};
+                dateRangeInput.value = `${startDate} - ${startDate}`;
             } else if (endDate) {
-                dateRangeInput.value = ${endDate} - ${endDate};
+                dateRangeInput.value = `${endDate} - ${endDate}`;
             }
         });
 

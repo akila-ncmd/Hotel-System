@@ -6,6 +6,7 @@ use App\Models\Reservation;
 use App\Models\RoomType;
 use App\Models\Branch;
 use App\Mail\ReservationConfirmation;
+use App\Services\RoomAvailability;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -85,6 +86,18 @@ class ReservationController extends Controller
             } else {
                 $data['check_out_date'] = $checkInDate->copy()->addMonths($data['duration_value'])->format('Y-m-d');
             }
+        }
+
+        // Reject the booking if every room of this type is already committed for these dates.
+        if (!RoomAvailability::hasCapacityFor(
+            $data['branch_id'],
+            $data['room_type_id'],
+            $data['check_in_date'],
+            $data['check_out_date']
+        )) {
+            return back()->withErrors([
+                'room_type_id' => 'No rooms of this type are available for the selected dates.',
+            ])->withInput();
         }
 
         $reservation = Reservation::create($data);
@@ -169,6 +182,21 @@ class ReservationController extends Controller
             } else {
                 $data['check_out_date'] = $checkInDate->copy()->addMonths($data['duration_value'])->format('Y-m-d');
             }
+        }
+
+        // Same capacity check as on create, but this reservation's own dates must not
+        // count against itself when it is being edited.
+        if (!RoomAvailability::hasCapacityFor(
+            $data['branch_id'],
+            $data['room_type_id'],
+            $data['check_in_date'],
+            $data['check_out_date'],
+            1,
+            $reservation->id
+        )) {
+            return back()->withErrors([
+                'room_type_id' => 'No rooms of this type are available for the selected dates.',
+            ])->withInput();
         }
 
         $reservation->update($data);

@@ -32,7 +32,6 @@ class AuthTest extends TestCase
             'password_confirmation' => 'password123',
             'nationality' => 'Sri Lankan',
             'contact_number' => '1234567890',
-            'two_factor_enabled' => false,
         ]);
 
         $response->assertRedirect(route('customer.dashboard'));
@@ -130,37 +129,6 @@ class AuthTest extends TestCase
 
         $response->assertSessionHasErrors(['email' => fn ($message) => str_contains($message, 'Too many login attempts')]);
         $this->assertGuest();
-    }
-
-    public function test_2fa_verification()
-    {
-        $user = User::factory()->create([
-            'email' => 'manager@example.com',
-            'password' => Hash::make('password123'),
-            'role' => 'manager',
-            'branch_id' => Branch::factory()->create()->id,
-            'two_factor_enabled' => true,
-        ]);
-
-        $response = $this->post('/login', [
-            'email' => 'manager@example.com',
-            'password' => 'password123',
-            'role' => 'manager',
-            'branch_id' => $user->branch_id,
-        ]);
-
-        $response->assertRedirect(route('2fa.verify'));
-        $this->assertGuest();
-        $this->assertNotNull(session('2fa_user_id'));
-
-        Mail::assertSent(\App\Mail\TwoFactorCode::class);
-
-        $user->refresh();
-        $response = $this->post('/2fa/verify', [
-            'code' => '123456', // Assume code is mocked or set in test
-        ]);
-
-        // Mocked code verification would go here; adjust based on actual code generation
     }
 
     public function test_logout_clears_session()

@@ -11,6 +11,7 @@ use App\Models\RoomType;
 use App\Models\Branch;
 use App\Mail\PaymentConfirmation;
 use App\Mail\ReservationConfirmation;
+use App\Services\RoomAvailability;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -145,6 +146,24 @@ class ClerkController extends Controller
                 }
             }
 
+            // Reject the booking if every room of this type is already committed for these dates.
+            if (!RoomAvailability::hasCapacityFor(
+                $data['branch_id'],
+                $data['room_type_id'],
+                $data['check_in_date'],
+                $data['check_out_date']
+            )) {
+                Log::warning('Reservation Failed: No Availability', [
+                    'branch_id' => $data['branch_id'],
+                    'room_type_id' => $data['room_type_id'],
+                    'check_in_date' => $data['check_in_date'],
+                    'check_out_date' => $data['check_out_date'],
+                ]);
+                return back()->withErrors([
+                    'room_type_id' => 'No rooms of this type are available for the selected dates.',
+                ])->withInput();
+            }
+
             $reservation = Reservation::create($data);
 
             Log::info('Reservation Created', [
@@ -244,6 +263,26 @@ class ClerkController extends Controller
                 } else {
                     $data['check_out_date'] = $checkInDate->copy()->addMonths($data['duration_value'])->format('Y-m-d');
                 }
+            }
+
+            // Same capacity check as on create, excluding this reservation from its own count.
+            if (!RoomAvailability::hasCapacityFor(
+                $data['branch_id'],
+                $data['room_type_id'],
+                $data['check_in_date'],
+                $data['check_out_date'],
+                1,
+                $reservation->id
+            )) {
+                Log::warning('Reservation Update Failed: No Availability', [
+                    'reservation_id' => $reservation->id,
+                    'room_type_id' => $data['room_type_id'],
+                    'check_in_date' => $data['check_in_date'],
+                    'check_out_date' => $data['check_out_date'],
+                ]);
+                return back()->withErrors([
+                    'room_type_id' => 'No rooms of this type are available for the selected dates.',
+                ])->withInput();
             }
 
             $reservation->update($data);
@@ -650,17 +689,25 @@ class ClerkController extends Controller
                     return back()->withErrors(["room_types.{$roomTypeId}.quantity" => "Maximum 3 rooms allowed per booking for {$roomType->name}."])->withInput();
                 }
 
-                $availableRooms = Room::where('branch_id', $data['branch_id'])
-                                     ->where('room_type_id', $roomTypeId)
-                                     ->where('status', 'available')
-                                     ->count();
+                // Availability must be judged across the requested dates, not by the
+                // current rooms.status flag — rooms free today may already be booked then.
+                $stay = $this->resolveStayDates($roomType, $roomData);
+                $availableRooms = RoomAvailability::remaining(
+                    (int) $data['branch_id'],
+                    (int) $roomTypeId,
+                    $roomData['check_in_date'],
+                    $stay['check_out_date']
+                );
+
                 if ($availableRooms < $roomData['quantity']) {
                     Log::warning('Travel Agency Booking Failed: Insufficient Available Rooms', [
                         'room_type_id' => $roomTypeId,
                         'available' => $availableRooms,
-                        'requested' => $roomData['quantity']
+                        'requested' => $roomData['quantity'],
+                        'check_in_date' => $roomData['check_in_date'],
+                        'check_out_date' => $stay['check_out_date'],
                     ]);
-                    return back()->withErrors(["room_types.{$roomTypeId}.quantity" => "Not enough available rooms for {$roomType->name}."])->withInput();
+                    return back()->withErrors(["room_types.{$roomTypeId}.quantity" => "Not enough available rooms for {$roomType->name} on the selected dates."])->withInput();
                 }
             }
 
@@ -673,22 +720,11 @@ class ClerkController extends Controller
 
                 foreach ($selectedRoomTypes as $roomTypeId => $roomData) {
                     $roomType = RoomType::findOrFail($roomTypeId);
-                    $checkOutDate = $roomData['check_out_date'] ?? null;
 
-                    if ($roomType->is_suite) {
-                        $checkInDate = Carbon::parse($roomData['check_in_date']);
-                        if ($roomData['duration_type'] === 'weeks') {
-                            if ($roomData['duration_value'] == 4) {
-                                $roomData['duration_type'] = 'months';
-                                $roomData['duration_value'] = 1;
-                                $checkOutDate = $checkInDate->copy()->addMonth()->format('Y-m-d');
-                            } else {
-                                $checkOutDate = $checkInDate->copy()->addWeeks($roomData['duration_value'])->format('Y-m-d');
-                            }
-                        } else {
-                            $checkOutDate = $checkInDate->copy()->addMonths($roomData['duration_value'])->format('Y-m-d');
-                        }
-                    }
+                    $stay = $this->resolveStayDates($roomType, $roomData);
+                    $checkOutDate = $stay['check_out_date'];
+                    $roomData['duration_type'] = $stay['duration_type'];
+                    $roomData['duration_value'] = $stay['duration_value'];
 
                     for ($i = 0; $i < $roomData['quantity']; $i++) {
                         // Create reservation
@@ -769,6 +805,45 @@ class ClerkController extends Controller
             ]);
             return back()->withErrors(['error' => 'An unexpected error occurred: ' . $e->getMessage()])->withInput();
         }
+    }
+
+    /**
+     * Resolve the effective stay dates for one booking line.
+     *
+     * Rooms carry an explicit check-out date. Suites derive theirs from the duration,
+     * and a 4-week stay is normalised to 1 month so it bills at the cheaper monthly
+     * rate — so the normalised duration is returned alongside the date.
+     *
+     * @return array{check_out_date: string|null, duration_type: string|null, duration_value: int|null}
+     */
+    private function resolveStayDates($roomType, array $roomData): array
+    {
+        if (!$roomType->is_suite) {
+            return [
+                'check_out_date' => $roomData['check_out_date'] ?? null,
+                'duration_type' => null,
+                'duration_value' => null,
+            ];
+        }
+
+        $checkIn = Carbon::parse($roomData['check_in_date']);
+        $durationType = $roomData['duration_type'];
+        $durationValue = (int) $roomData['duration_value'];
+
+        if ($durationType === 'weeks' && $durationValue === 4) {
+            $durationType = 'months';
+            $durationValue = 1;
+        }
+
+        $checkOut = $durationType === 'months'
+            ? $checkIn->copy()->addMonths($durationValue)
+            : $checkIn->copy()->addWeeks($durationValue);
+
+        return [
+            'check_out_date' => $checkOut->format('Y-m-d'),
+            'duration_type' => $durationType,
+            'duration_value' => $durationValue,
+        ];
     }
 
     private function calculateTotal($reservation, $additionalCharges = [])

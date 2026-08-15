@@ -162,5 +162,8 @@
             });
         });
     </script>
+
+    {{-- Page-specific scripts. Views that need their own JS push it into this section. --}}
+    @yield('scripts')
 </body>
 </html>

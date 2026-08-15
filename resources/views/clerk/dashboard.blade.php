@@ -103,8 +103,8 @@
                            <!-- <td>{{ $booking->reservation->user->name }}</td> -->
                             <td>{{ $booking->reservation->roomType->name }}</td>
                             <td>{{ $booking->reservation->branch->name }}</td>
-                            <td>{{ \Carbon\Carbon::parse($reservation->check_in_date)->format('Y-m-d') }}</td>
-						<td>{{ \Carbon\Carbon::parse($reservation->check_out_date)->format('Y-m-d') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($booking->reservation->check_in_date)->format('Y-m-d') }}</td>
+                            <td>{{ \Carbon\Carbon::parse($booking->reservation->check_out_date)->format('Y-m-d') }}</td>
                             <td>{{ ucfirst($booking->reservation->status) }}</td>
                             <td>
                                 @if($booking->reservation->status === 'pending' || $booking->reservation->status === 'confirmed')

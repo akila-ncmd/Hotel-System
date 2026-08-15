@@ -6,7 +6,6 @@ use App\Models\User;
 use App\Models\Branch;
 use App\Models\Reservation;
 use App\Mail\RegistrationConfirmation;
-use App\Mail\TwoFactorCode;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -14,18 +13,15 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class AuthController extends Controller
 {
     public function __construct()
     {
         $this->middleware('guest')->except([
-            'logout', 
-            'selectBranch', 
-            'viewBranchData', 
-            'verifyTwoFactor',
+            'logout',
+            'selectBranch',
+            'viewBranchData',
             'showStaffRegisterForm',
             'registerStaff'
         ]);
@@ -96,19 +92,6 @@ class AuthController extends Controller
                 $request->session()->forget('admin_selected_branch');
             }
 
-            if ($user->two_factor_enabled) {
-                $code = Str::random(6);
-                $user->two_factor_code = Hash::make($code);
-                $user->two_factor_expires_at = Carbon::now()->addMinutes(10);
-                $user->save();
-
-                Mail::to($user->email)->send(new TwoFactorCode($code));
-                Auth::logout();
-                $request->session()->put('2fa_user_id', $user->id);
-
-                return redirect()->route('2fa.verify');
-            }
-
             RateLimiter::clear($key);
 
             Log::info('User logged in successfully', [
@@ -134,54 +117,6 @@ class AuthController extends Controller
         ]);
 
         return back()->withErrors(['email' => 'Invalid email or password.']);
-    }
-
-    public function showTwoFactorForm()
-    {
-        if (!session('2fa_user_id')) {
-            return redirect()->route('login');
-        }
-        return view('auth.two-factor');
-    }
-
-    public function verifyTwoFactor(Request $request)
-    {
-        $request->validate(['code' => 'required|string']);
-
-        $userId = session('2fa_user_id');
-        $user = User::find($userId);
-
-        if (!$user || !$user->two_factor_code || !$user->two_factor_expires_at) {
-            return redirect()->route('login')->withErrors(['code' => 'Invalid 2FA session. Please login again.']);
-        }
-
-        if (Carbon::now()->greaterThan($user->two_factor_expires_at)) {
-            $user->two_factor_code = null;
-            $user->two_factor_expires_at = null;
-            $user->save();
-            $request->session()->forget('2fa_user_id');
-            return redirect()->route('login')->withErrors(['code' => '2FA code has expired. Please login again.']);
-        }
-
-        if (Hash::check($request->code, $user->two_factor_code)) {
-            $user->two_factor_code = null;
-            $user->two_factor_expires_at = null;
-            $user->save();
-            Auth::login($user);
-            $request->session()->forget('2fa_user_id');
-
-            Log::info('2FA verified successfully', ['user_id' => $user->id]);
-
-            return match ($user->role) {
-                'admin' => redirect()->route('admin.dashboard'),
-                'customer' => redirect()->route('dashboard'),
-                'clerk' => redirect()->route('clerk.dashboard', ['branch_id' => $user->branch_id]),
-                'manager' => redirect()->route('manager.dashboard', ['branch_id' => $user->branch_id]),
-                default => redirect()->route('dashboard'),
-            };
-        }
-
-        return back()->withErrors(['code' => 'Invalid 2FA code.']);
     }
 
     public function showRegisterForm()
@@ -215,7 +150,6 @@ class AuthController extends Controller
             'password' => ['required', 'string', 'min:8', 'max:20', 'confirmed'],
             'nationality' => ['required', 'string', 'max:255'],
             'contact_number' => $contactNumberRules,
-            'two_factor_enabled' => 'nullable|boolean',
         ], [
             'name.regex' => 'Name can only contain letters and spaces.',
             'name.min' => 'Name must be at least 5 characters.',
@@ -242,7 +176,6 @@ class AuthController extends Controller
                 'nationality' => $request->nationality,
                 'contact_number' => $request->contact_number,
                 'role' => 'customer',
-                'two_factor_enabled' => $request->two_factor_enabled ?? false,
             ]);
 
             Mail::to($user->email)->send(new RegistrationConfirmation($user));
@@ -292,7 +225,6 @@ class AuthController extends Controller
                 'password' => 'required|confirmed|min:8',
                 'role' => 'required|in:clerk,manager',
                 'branch_id' => 'required|exists:branches,id',
-                'two_factor_enabled' => 'nullable|boolean',
             ]);
 
             $user = User::create([
@@ -301,7 +233,6 @@ class AuthController extends Controller
                 'password' => Hash::make($data['password']),
                 'role' => $data['role'],
                 'branch_id' => $data['branch_id'],
-                'two_factor_enabled' => $data['two_factor_enabled'] ?? false,
             ]);
 
             Mail::to($user->email)->send(new RegistrationConfirmation($user));

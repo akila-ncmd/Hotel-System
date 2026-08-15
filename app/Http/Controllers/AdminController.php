@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Billing;
 use App\Models\Branch;
+use App\Models\Report;
 use App\Models\Reservation;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {

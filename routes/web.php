@@ -83,15 +83,6 @@ Route::middleware(['auth', 'role:manager'])->prefix('manager')->group(function (
     Route::get('revenue-report/download/{format}', [ManagerController::class, 'downloadRevenueReport'])->name('manager.download-revenue-report');
 });
 
-// Test Email Route
-Route::get('/test-email', function () {
-    \Illuminate\Support\Facades\Mail::raw('Test email from Hotel Reservation System', function ($message) {
-        $message->to('test@yourapp.local')
-                ->subject('Test Email');
-    });
-    return 'Email sent!';
-});
-
 // Dashboard Route
 Route::get('dashboard', function () {
     $role = auth()->user()->role;

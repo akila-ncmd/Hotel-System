@@ -12,6 +12,9 @@
 </head>
 <body>
     <h1>Daily Report - {{ $date }}</h1>
+    @isset($branch)
+        <h2 style="text-align: center; font-weight: normal; color: #555;">{{ $branch }}</h2>
+    @endisset
     <table>
         <tr>
             <th>Metric</th>
