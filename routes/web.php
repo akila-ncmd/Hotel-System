@@ -18,6 +18,16 @@ Route::get('/', function () {
     return redirect()->route('home');
 });
 
+// Guest information + legal pages.
+// Static Blade with no data behind them, so Route::view() rather than a
+// controller. Public on purpose: a guest reads the cancellation terms before
+// they have an account, and search engines need to reach them.
+Route::view('terms', 'legal.terms')->name('legal.terms');
+Route::view('privacy', 'legal.privacy')->name('legal.privacy');
+Route::view('cancellation-policy', 'legal.cancellation')->name('legal.cancellation');
+Route::view('accessibility', 'legal.accessibility')->name('legal.accessibility');
+Route::view('faq', 'legal.faq')->name('legal.faq');
+
 // Authentication Routes
 Route::get('login', [AuthController::class, 'showLoginForm'])->name('login');
 Route::post('login', [AuthController::class, 'login']);

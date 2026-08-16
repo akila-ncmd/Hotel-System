@@ -49,8 +49,26 @@
     --ds-danger:    #8C3B36;
 
     /* Type */
-    --ds-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
-    --ds-sans:  "Jost", "Helvetica Neue", Arial, sans-serif;
+    /* Display face: headlines, hero, prices, the footer wordmark.
+       Lora is a contemporary serif with brushed, calligraphic curves and
+       moderate contrast — it holds up at hero scale without the brittleness of
+       a high-contrast didone, and stays readable down at card-heading size.
+       Georgia is the fallback: also a sturdy screen serif, so a failed webfont
+       shifts the texture rather than breaking the design. */
+    --ds-display: "Lora", Georgia, "Times New Roman", serif;
+    /* Text face: body copy, UI, and all the uppercase micro-type. */
+    --ds-sans: "Plus Jakarta Sans", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+
+    /* Kept as an alias: several Blade files reference --ds-serif directly. */
+    --ds-serif: var(--ds-display);
+
+    /* Uppercase tracking scale. Plus Jakarta Sans is wider and has a larger
+       x-height than the Jost it replaced, so it needs noticeably less tracking
+       to read as small caps — these are roughly 25% tighter than the values
+       that suited Jost. Three steps, so the micro-type keeps a hierarchy. */
+    --ds-track-wide: .18em;   /* eyebrows, footer cell labels */
+    --ds-track-nav:  .14em;   /* nav links, CTAs, captions */
+    --ds-track-ui:   .11em;   /* buttons, table headers, status pills */
 
     /* A fluid display scale — clamp() keeps headings sane on phones without
        a pile of breakpoints. */
@@ -83,13 +101,22 @@ body {
     background-color: var(--ds-ivory);
     color: var(--ds-charcoal);
     font-family: var(--ds-sans);
-    font-weight: 300;
+    /* Plus Jakarta Sans has a large x-height and reads heavier than Jost at the
+       same weight, so body sits at 400 rather than 300 — 300 looked anaemic on
+       an ivory ground, especially in tables. */
+    font-weight: 400;
     font-size: 1rem;
-    line-height: 1.75;
+    line-height: 1.7;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* Both families ship real weights and italics, so never let the browser
+       fake one — a synthesised bold or oblique is always worse than the drawn
+       cut, and silently hides a missing weight in the font request. */
+    font-synthesis: none;
 }
 
+/* Headings default to page ink. Anything sitting on photography or a dark
+   band must set its own colour — see .modern-hero below, and .ds-band-dark. */
 h1, h2, h3, h4, .ds-display {
     font-family: var(--ds-serif);
     font-weight: 400;
@@ -103,6 +130,26 @@ h1, h2, h3, h4, .ds-display {
 h1 { font-size: var(--ds-fs-h1); }
 h2 { font-size: var(--ds-fs-h2); }
 h3 { font-size: var(--ds-fs-h3); letter-spacing: -0.01em; }
+
+/* The hero heading sits on a photograph, so it must not inherit page ink.
+   A soft shadow keeps it legible over the lighter parts of the image, where
+   ivory alone would wash out. */
+.modern-hero h1,
+.modern-hero h2,
+.modern-hero .hero-heading {
+    color: var(--ds-ivory);
+    text-shadow: 0 2px 24px rgba(26, 23, 21, .45);
+}
+
+/* Bootstrap's .fw-bold / .display-* on the home page push headings to 700.
+   Lora does have a 700, but a bold serif at hero scale reads as loud rather
+   than expensive — the whole direction is quiet luxury, so headings stay at
+   400 by intent. Remove this block if the brand ever wants weight instead.
+   Bootstrap's utilities are declared !important, so this has to match it. */
+h1.fw-bold, h2.fw-bold, h3.fw-bold, h4.fw-bold,
+h1[class*="display-"], h2[class*="display-"], h3[class*="display-"] {
+    font-weight: 400 !important;
+}
 
 p { color: var(--ds-charcoal); }
 
@@ -128,7 +175,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .7rem;
     font-weight: 500;
-    letter-spacing: .22em;
+    letter-spacing: var(--ds-track-wide);
     text-transform: uppercase;
     color: var(--ds-clay);
     display: inline-flex;
@@ -221,27 +268,152 @@ a:hover { color: var(--ds-wine-deep); }
 
 /* 4. Navigation ------------------------------------------------------------ */
 
+/* The header is two stacked bars: a thin utility strip carrying the hotline and
+   the social accounts, and the main bar with the brand, the sections and the
+   booking CTA. A hotel site's phone number has to be reachable without
+   scrolling — that is what the strip buys, and it is the first thing given up
+   when space or scroll position gets tight. */
+
+/* The nav points at #rooms, #gallery and friends, and the bar is sticky — so
+   every anchor target has to reserve the bar's height or the heading you jumped
+   to lands underneath it. scroll-padding on the scroll container does this once
+   for every anchor on the site, rather than per-target scroll-margin. */
+html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 6.5rem;
+}
+
+.ds-header {
+    position: sticky;
+    top: 0;
+    z-index: 1030;
+    /* Both bars slide as one unit when the header retracts. */
+    transform: translateY(0);
+    transition: transform var(--ds-med) var(--ds-ease);
+    will-change: transform;
+}
+
+/* Retracted: the header lifts out of the way on a downward scroll and comes
+   straight back on any upward scroll, so long pages read without a bar sitting
+   over them but booking is never more than a flick away.
+   -100% on a transform resolves against the element's own border box, so this
+   is always exactly the header's height — including after the utility strip
+   folds, which changes that height. No measuring, and nothing to go stale. */
+.ds-header.is-hidden { transform: translateY(-100%); }
+
+/* --- skip link -------------------------------------------------------- */
+
+/* Visible only to a keyboard, and only when focused. Without it every tab
+   through the site starts by walking the whole nav again. */
+.ds-skip {
+    position: absolute;
+    left: 1rem;
+    top: 0;
+    z-index: 1080;
+    transform: translateY(-140%);
+    padding: .7rem 1.25rem;
+    background: var(--ds-wine);
+    color: var(--ds-ivory);
+    font-size: .74rem;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    text-decoration: none;
+    border-radius: 0 0 var(--ds-radius) var(--ds-radius);
+    transition: transform var(--ds-fast) var(--ds-ease);
+}
+.ds-skip:focus { transform: translateY(0); color: var(--ds-ivory); }
+
+/* --- utility strip ---------------------------------------------------- */
+
+.ds-utility {
+    background: var(--ds-charcoal);
+    color: rgba(250, 247, 242, .72);
+    font-size: .7rem;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    /* Collapsed by animating the grid row rather than height, so the strip does
+       not need a magic pixel value and can hold whatever it holds. */
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--ds-med) var(--ds-ease),
+                opacity var(--ds-med) var(--ds-ease);
+}
+.ds-utility > * { overflow: hidden; min-height: 0; }
+
+/* Once the page has scrolled the strip folds away: the hotline has had its
+   moment, and the main bar is what matters from then on. */
+.ds-header.is-stuck .ds-utility { grid-template-rows: 0fr; opacity: 0; }
+
+.ds-utility__inner {
+    display: flex;
+    align-items: center;
+    gap: 1.25rem;
+    padding-block: .6rem;
+}
+.ds-utility a { color: inherit; text-decoration: none; }
+.ds-utility a:hover { color: var(--ds-ivory); }
+
+.ds-utility__item {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+.ds-utility__item i { color: var(--ds-clay); font-size: .8rem; }
+
+/* The note is the first thing to go, then the email address. The hotline and
+   the social row survive to the narrowest width. */
+.ds-utility__note { margin-left: auto; color: rgba(250, 247, 242, .5); }
+
+.ds-utility__social { display: inline-flex; align-items: center; gap: .25rem; }
+.ds-utility__social a {
+    display: grid;
+    place-items: center;
+    width: 1.85rem; height: 1.85rem;
+    border: 1px solid rgba(250, 247, 242, .16);
+    border-radius: 50%;
+    font-size: .72rem;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                border-color var(--ds-fast) var(--ds-ease),
+                transform var(--ds-fast) var(--ds-ease);
+}
+.ds-utility__social a:hover {
+    background: var(--ds-wine);
+    border-color: var(--ds-wine);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 991.98px) {
+    .ds-utility__note, .ds-utility__item--wide { display: none; }
+    .ds-utility__social { margin-left: auto; }
+}
+
+/* --- main bar --------------------------------------------------------- */
+
 .navbar {
+    position: relative;   /* the sticky behaviour now belongs to .ds-header */
     background-color: rgba(250, 247, 242, .82) !important;
     backdrop-filter: saturate(140%) blur(14px);
     -webkit-backdrop-filter: saturate(140%) blur(14px);
     border-bottom: 1px solid transparent;
     box-shadow: none !important;
     transition: background-color var(--ds-med) var(--ds-ease),
-                border-color var(--ds-med) var(--ds-ease);
+                border-color var(--ds-med) var(--ds-ease),
+                padding-block var(--ds-med) var(--ds-ease);
     padding-block: .85rem;
 }
 /* Set once the page has scrolled, so the bar only asserts itself over content. */
-.navbar.is-stuck {
+.ds-header.is-stuck .navbar {
     background-color: rgba(250, 247, 242, .96) !important;
     border-bottom-color: var(--ds-sand);
+    padding-block: .5rem;
 }
 
 .navbar .nav-link {
     font-family: var(--ds-sans);
     font-size: .74rem !important;
     font-weight: 400;
-    letter-spacing: .18em;
+    letter-spacing: var(--ds-track-nav);
     text-transform: uppercase;
     color: var(--ds-charcoal) !important;
     background: none !important;
@@ -264,16 +436,236 @@ a:hover { color: var(--ds-wine-deep); }
     transition: transform var(--ds-med) var(--ds-ease);
 }
 .navbar .nav-link:hover::after,
-.navbar .nav-link.active::after { transform: scaleX(1); }
+.navbar .nav-link.active::after,
+.navbar .nav-link[aria-current="page"]::after { transform: scaleX(1); }
 .navbar .nav-link:hover,
-.navbar .nav-link.active { color: var(--ds-wine) !important; }
+.navbar .nav-link.active,
+.navbar .nav-link[aria-current="page"] { color: var(--ds-wine) !important; }
 
 .navbar .logout-btn { color: var(--ds-muted) !important; }
 .navbar .logout-btn:hover { color: var(--ds-danger) !important; }
 .navbar .logout-btn::after { background: var(--ds-danger); }
 
-.navbar-toggler { border: 1px solid var(--ds-sand); border-radius: var(--ds-radius); }
+/* --- section dropdown ------------------------------------------------- */
+
+/* Bootstrap supplies the open/close plumbing; everything visible here is ours.
+   Animated with transform + opacity only, so it composites on the GPU. */
+.navbar .dropdown-menu {
+    border: 1px solid var(--ds-sand);
+    border-radius: var(--ds-radius);
+    box-shadow: var(--ds-shadow-lg);
+    background: var(--ds-ivory);
+    padding: .5rem;
+    margin-top: .75rem;
+    min-width: 15rem;
+}
+@media (min-width: 992px) {
+    /* Bootstrap toggles display, which cannot transition. Keep it in the layout
+       and animate visibility instead so the panel actually eases in. */
+    .navbar .dropdown-menu {
+        display: block;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-6px);
+        transition: opacity var(--ds-fast) var(--ds-ease),
+                    transform var(--ds-fast) var(--ds-ease),
+                    visibility var(--ds-fast);
+    }
+    .navbar .dropdown-menu.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+}
+.navbar .dropdown-item {
+    display: flex;
+    align-items: baseline;
+    gap: .2rem;
+    flex-direction: column;
+    padding: .6rem .85rem;
+    border-radius: var(--ds-radius);
+    font-size: .9rem;
+    color: var(--ds-charcoal);
+    white-space: normal;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                color var(--ds-fast) var(--ds-ease);
+}
+.navbar .dropdown-item:hover,
+.navbar .dropdown-item:focus-visible {
+    background: var(--ds-shell);
+    color: var(--ds-wine);
+}
+.navbar .dropdown-item small {
+    font-size: .74rem;
+    color: var(--ds-muted);
+    letter-spacing: 0;
+    text-transform: none;
+}
+.navbar .dropdown-toggle::after {
+    /* Bootstrap's caret is a filled triangle; a hairline chevron matches the
+       rest of the arrows in the design layer. */
+    content: none;
+}
+.navbar .dropdown-toggle .ds-caret {
+    display: inline-block;
+    margin-left: .4rem;
+    transition: transform var(--ds-fast) var(--ds-ease);
+}
+.navbar .dropdown-toggle.show .ds-caret { transform: rotate(180deg); }
+
+/* --- actions ---------------------------------------------------------- */
+
+.ds-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+}
+
+/* On a phone the brand wordmark, the CTA and the toggler cannot all fit on one
+   row — measured, they need 441px of a 375px bar. The wordmark is what gives
+   way: the emblem still identifies the site, and the booking CTA is worth more
+   there than the name is. Above sm everything fits and the name returns. */
+@media (max-width: 575.98px) {
+    .navbar-brand .brand-name { display: none; }
+    .ds-nav-cta { padding-inline: 1rem; }
+}
+
+/* The booking CTA. The one saturated element in the bar, because on a hotel
+   site it is the only thing the bar is really for. */
+.ds-nav-cta {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    padding: .6rem 1.35rem;
+    background: var(--ds-wine);
+    color: var(--ds-ivory) !important;
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 1px solid var(--ds-wine);
+    border-radius: var(--ds-radius);
+    white-space: nowrap;
+    transition: color var(--ds-med) var(--ds-ease);
+}
+/* Wipe fill: a deeper wine sweeps up from the bottom on hover. Sits behind the
+   label via z-index rather than opacity, so the text never dims with it. */
+.ds-nav-cta::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--ds-charcoal);
+    transform: translateY(101%);
+    transition: transform var(--ds-med) var(--ds-ease);
+    z-index: 0;
+}
+.ds-nav-cta > * { position: relative; z-index: 1; }
+.ds-nav-cta:hover::before, .ds-nav-cta:focus-visible::before { transform: translateY(0); }
+
+/* --- animated toggler ------------------------------------------------- */
+
+/* Three rules that morph into a cross. Bootstrap's default is a background
+   image, which cannot animate between the two states. */
+.navbar-toggler {
+    display: grid;
+    place-content: center;
+    gap: 5px;
+    width: 2.75rem; height: 2.75rem;
+    padding: 0;
+    border: 1px solid var(--ds-sand);
+    border-radius: var(--ds-radius);
+    background: transparent;
+}
 .navbar-toggler:focus { box-shadow: none; }
+.navbar-toggler__bar {
+    display: block;
+    width: 1.25rem; height: 1px;
+    background: var(--ds-charcoal);
+    transition: transform var(--ds-med) var(--ds-ease),
+                opacity var(--ds-fast) var(--ds-ease);
+}
+.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(2) { opacity: 0; }
+.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+
+/* --- mobile panel ----------------------------------------------------- */
+
+.ds-navpanel { background: var(--ds-ivory); border-left: 1px solid var(--ds-sand); }
+.ds-navpanel .offcanvas-header { padding: 1.25rem var(--ds-gutter); border-bottom: 1px solid var(--ds-sand); }
+.ds-navpanel .offcanvas-body { padding: 1.5rem var(--ds-gutter) 2rem; }
+
+@media (max-width: 991.98px) {
+    .ds-navpanel .nav-link {
+        display: block;
+        margin: 0 !important;
+        padding: .9rem 0 !important;
+        font-size: .95rem !important;
+        letter-spacing: var(--ds-track-ui);
+        border-bottom: 1px solid var(--ds-sand);
+    }
+    .ds-navpanel .nav-link::after { content: none; }
+    .ds-navpanel .dropdown-menu {
+        border: 0;
+        box-shadow: none;
+        margin: 0;
+        padding: 0 0 .5rem .75rem;
+        background: transparent;
+    }
+    .ds-navpanel .ds-nav-actions {
+        flex-direction: column;
+        align-items: stretch;
+        margin-top: 1.75rem;
+    }
+    .ds-navpanel .ds-nav-cta { justify-content: center; padding-block: .9rem; }
+
+    /* Links arrive in sequence once the panel has opened. --i is set on each
+       item in the markup, so nothing here needs to know how many there are. */
+    .ds-navpanel .ds-navpanel__item {
+        opacity: 0;
+        transform: translateX(1.25rem);
+    }
+    .ds-navpanel.show .ds-navpanel__item {
+        opacity: 1;
+        transform: none;
+        transition: opacity var(--ds-med) var(--ds-ease),
+                    transform var(--ds-med) var(--ds-ease);
+        transition-delay: calc(var(--i, 0) * 55ms + 90ms);
+    }
+}
+
+/* --- reading progress ------------------------------------------------- */
+
+/* A hairline across the foot of the header tracking how far down the document
+   you are. Driven by a scroll-driven animation where the browser supports one:
+   it runs off the main thread, so it stays smooth while the page is busy. The
+   @supports guard means unsupporting browsers get a bar that is simply never
+   drawn, which is the correct degradation for pure decoration. */
+.ds-progress {
+    position: absolute;
+    left: 0; bottom: -1px;
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--ds-clay), var(--ds-wine));
+    transform: scaleX(0);
+    transform-origin: left;
+}
+@supports (animation-timeline: scroll()) {
+    .ds-progress {
+        animation: ds-progress linear;
+        animation-timeline: scroll(root block);
+    }
+}
+@keyframes ds-progress { to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-header { transition: none; }
+    .ds-header.is-hidden { transform: none; }   /* never animate the bar away */
+    .ds-progress { animation: none; }
+    .ds-navpanel .ds-navpanel__item { opacity: 1; transform: none; transition: none; }
+}
 
 /* 5. Buttons --------------------------------------------------------------- */
 
@@ -281,7 +673,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .74rem;
     font-weight: 500;
-    letter-spacing: .16em;
+    letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     border-radius: var(--ds-radius);
     padding: .95rem 2rem;
@@ -352,7 +744,7 @@ a:hover { color: var(--ds-wine-deep); }
 .ds-link {
     font-size: .74rem;
     font-weight: 500;
-    letter-spacing: .16em;
+    letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--ds-charcoal);
     padding-bottom: .3rem;
@@ -369,7 +761,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .7rem;
     font-weight: 500;
-    letter-spacing: .16em;
+    letter-spacing: .12em;
     text-transform: uppercase;
     color: var(--ds-muted);
     margin-bottom: .5rem;
@@ -469,7 +861,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .66rem;
     font-weight: 500;
-    letter-spacing: .16em;
+    letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     color: var(--ds-muted);
     border-bottom: 1px solid var(--ds-sand);
@@ -497,7 +889,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .64rem;
     font-weight: 500;
-    letter-spacing: .14em;
+    letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     padding: .35rem .7rem;
     border-radius: 100px;
@@ -521,7 +913,7 @@ a:hover { color: var(--ds-wine-deep); }
 .ds-price {
     font-family: var(--ds-serif);
     font-size: clamp(1.5rem, 2.4vw, 2rem);
-    font-weight: 500;
+    font-weight: 400;   /* Lora 400 — a price is a headline, not a bold number */
     letter-spacing: -0.01em;
     color: var(--ds-charcoal);
     line-height: 1;
@@ -530,7 +922,7 @@ a:hover { color: var(--ds-wine-deep); }
     font-family: var(--ds-sans);
     font-size: .68rem;
     font-weight: 400;
-    letter-spacing: .14em;
+    letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     color: var(--ds-faint);
     margin-left: .4rem;
@@ -575,7 +967,7 @@ a:hover { color: var(--ds-wine-deep); }
 .ds-numeral {
     font-family: var(--ds-serif);
     font-size: clamp(2.5rem, 5vw, 4rem);
-    font-weight: 300;
+    font-weight: 400;   /* Lora 400 */
     line-height: 1;
     color: var(--ds-clay);
 }
@@ -620,7 +1012,7 @@ a:hover { color: var(--ds-wine-deep); }
 .text-warning.fw-bold.d-block {
     font-size: .7rem;
     font-weight: 500 !important;
-    letter-spacing: .22em;
+    letter-spacing: var(--ds-track-wide);
     text-transform: uppercase;
 }
 
@@ -679,7 +1071,7 @@ a:hover { color: var(--ds-wine-deep); }
     left: 1rem; bottom: .85rem;
     font-size: .66rem;
     font-weight: 500;
-    letter-spacing: .18em;
+    letter-spacing: var(--ds-track-nav);
     text-transform: uppercase;
     color: var(--ds-ivory);
     text-shadow: 0 1px 12px rgba(26, 23, 21, .65);
@@ -690,6 +1082,112 @@ a:hover { color: var(--ds-wine-deep); }
                 transform var(--ds-med) var(--ds-ease);
 }
 .ds-gl-tile:hover .ds-gl-caption { opacity: 1; transform: none; }
+
+/* 8b. Legal + guest-information pages -------------------------------------- */
+
+/* Long-form reading, so the only real job here is measure and vertical rhythm.
+   Capped at ~34rem of text because these pages are read, not scanned. */
+.ds-legal {
+    max-width: 44rem;
+    margin-inline: auto;
+    padding-bottom: clamp(2rem, 5vw, 4rem);
+}
+.ds-legal .ds-page-head { padding-top: clamp(1.5rem, 4vw, 3rem); }
+
+.ds-legal__meta {
+    margin: 1rem 0 0;
+    font-size: .72rem;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    color: var(--ds-faint);
+}
+
+/* Section headings sit smaller than a page h2 elsewhere: at body measure a full
+   display-scale heading dwarfs the paragraph it introduces. */
+.ds-legal h2 {
+    font-size: clamp(1.15rem, 1.8vw, 1.45rem);
+    margin: clamp(2.25rem, 4vw, 3rem) 0 .75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--ds-sand);
+}
+.ds-legal h2:first-of-type { border-top: 0; padding-top: 0; }
+.ds-legal p { color: var(--ds-charcoal); }
+.ds-legal .ds-lead { color: var(--ds-muted); }
+
+.ds-legal__list {
+    margin: 0 0 1rem;
+    padding-left: 1.1rem;
+    list-style: none;
+}
+.ds-legal__list li {
+    position: relative;
+    margin-bottom: .6rem;
+}
+/* A clay lozenge instead of a bullet — the same gilt detail the rest of the
+   design layer uses for small marks. */
+.ds-legal__list li::before {
+    content: "";
+    position: absolute;
+    left: -1.1rem;
+    top: .72em;
+    width: .35rem;
+    height: 1px;
+    background: var(--ds-clay);
+}
+.ds-legal__list strong { font-weight: 500; }
+
+.ds-legal__callout { margin-top: clamp(2rem, 4vw, 3rem); }
+
+.ds-legal__foot {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--ds-sand);
+    font-size: .9rem;
+    color: var(--ds-muted);
+}
+
+/* --- FAQ accordion ---------------------------------------------------- */
+
+/* Native <details>/<summary>: keyboard-operable, announced correctly and
+   searchable by the browser's own find-in-page, with no script to load. */
+.ds-faq { border-top: 1px solid var(--ds-sand); }
+
+.ds-faq__item { border-bottom: 1px solid var(--ds-sand); }
+
+.ds-faq__item > summary {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1.5rem;
+    padding: 1.15rem 0;
+    cursor: pointer;
+    font-family: var(--ds-serif);
+    font-size: 1.05rem;
+    color: var(--ds-charcoal);
+    list-style: none;   /* Firefox */
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+/* WebKit draws its own triangle through a pseudo-element, not list-style. */
+.ds-faq__item > summary::-webkit-details-marker { display: none; }
+.ds-faq__item > summary:hover { color: var(--ds-wine); }
+
+/* Our own marker: a plus that becomes a minus when open. */
+.ds-faq__item > summary::after {
+    content: "\002B";
+    flex: 0 0 auto;
+    font-family: var(--ds-sans);
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--ds-clay);
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.ds-faq__item[open] > summary::after { content: "\2212"; }
+
+.ds-faq__item > p {
+    margin: 0 0 1.35rem;
+    padding-right: 2.5rem;
+    color: var(--ds-muted);
+}
 
 /* 9. Footer ---------------------------------------------------------------- */
 
@@ -704,7 +1202,11 @@ a:hover { color: var(--ds-wine-deep); }
 
     background: var(--ds-ink);
     color: var(--f-mid);
-    margin-top: var(--ds-section);
+    /* No top margin. The footer butts straight up against whatever section
+       precedes it — a gap here shows the ivory page ground as a white band
+       between the last section's colour and the footer's ink, which reads as a
+       rendering fault rather than as spacing. The footer's own top padding
+       supplies the breathing room. */
     padding-block: clamp(2rem, 5vw, 3.5rem) 1.75rem;
     font-size: .92rem;
     overflow: hidden;   /* the wordmark is allowed to run wide */
@@ -712,36 +1214,6 @@ a:hover { color: var(--ds-wine-deep); }
 
 .ds-footer a { color: var(--f-mid); }
 .ds-footer a:hover { color: var(--ds-ivory); }
-
-/* --- marquee --------------------------------------------------------- */
-
-.ds-marquee {
-    border-block: 1px solid var(--f-line);
-    padding-block: .9rem;
-    margin-bottom: clamp(2rem, 4vw, 3.5rem);
-    overflow: hidden;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-            mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-}
-.ds-marquee__track {
-    display: flex;
-    align-items: center;
-    gap: 2.5rem;
-    width: max-content;
-    animation: ds-marquee 34s linear infinite;
-}
-.ds-marquee__track span {
-    font-size: .7rem;
-    font-weight: 400;
-    letter-spacing: .24em;
-    text-transform: uppercase;
-    color: var(--f-dim);
-    white-space: nowrap;
-}
-.ds-marquee__dot { color: var(--ds-clay); font-size: .55rem !important; }
-/* Two identical halves, so translating by exactly -50% loops seamlessly. */
-@keyframes ds-marquee { to { transform: translateX(-50%); } }
-.ds-footer:hover .ds-marquee__track { animation-play-state: paused; }
 
 /* --- bento grid ------------------------------------------------------ */
 
@@ -773,12 +1245,26 @@ a:hover { color: var(--ds-wine-deep); }
 }
 
 /* Only once there is genuinely room does the layout become deliberately
-   asymmetric — the "unusual layout" the reference footers share. */
-@container footer (min-width: 64rem) {
+   asymmetric — the "unusual layout" the reference footers share.
+
+   60rem, not an arbitrary value: auto-fit above reaches four columns at exactly
+   4 x 15rem, so the explicit layout takes over on the same width auto-fit would
+   have gone to four. If the two disagreed there would be a band where auto-fit
+   places six content cells into four columns and leaves two empty tracks — and
+   an empty track shows the grid's own --f-line background as a visible slab. */
+@container footer (min-width: 60rem) {
     .ds-bento {
         grid-template-columns: 1.6fr 1fr 1.2fr 1.2fr;
     }
+    /* Row 1: lead, index, houses, reception.
+       Row 2: lead (cont.), your-stay, guest-care, emblem. Six content cells
+       plus the emblem fill both rows exactly, so there is no hole to fill. */
     .ds-cell--lead { grid-row: span 2; }
+    /* Full-bleed only matters while the emblem would otherwise orphan; here it
+       is the last cell of a complete row, so it takes a single track.
+       Qualified with .ds-bento to outrank the `grid-column: 1 / -1` default,
+       which is declared later in the file at equal specificity. */
+    .ds-bento .ds-cell--mark { grid-column: auto; }
 }
 
 .ds-cell {
@@ -799,7 +1285,7 @@ a:hover { color: var(--ds-wine-deep); }
     display: block;
     font-size: .64rem;
     font-weight: 500;
-    letter-spacing: .24em;
+    letter-spacing: var(--ds-track-wide);
     text-transform: uppercase;
     color: var(--ds-clay);
     margin-bottom: 1.5rem;
@@ -809,7 +1295,7 @@ a:hover { color: var(--ds-wine-deep); }
 .ds-cell__statement {
     font-family: var(--ds-serif);
     font-size: clamp(1.35rem, 2vw, 1.9rem);
-    font-weight: 300;
+    font-weight: 400;   /* Lora 400 */
     line-height: 1.3;
     letter-spacing: -0.01em;
     color: var(--ds-ivory);
@@ -823,7 +1309,7 @@ a:hover { color: var(--ds-wine-deep); }
     margin-top: 2.5rem;
     font-size: .7rem;
     font-weight: 500;
-    letter-spacing: .18em;
+    letter-spacing: var(--ds-track-nav);
     text-transform: uppercase;
     color: var(--ds-ivory) !important;
     align-self: flex-start;
@@ -858,6 +1344,76 @@ a:hover { color: var(--ds-wine-deep); }
 .ds-cell__list a:hover span { transform: translateX(8px); }
 .ds-cell__list a:hover::after { transform: scaleX(1); }
 
+/* Social row. Square hairline tiles rather than filled circles — the footer's
+   hierarchy comes from rules and type, and three brand-blue roundels would be
+   the only saturated thing on the whole surface. */
+.ds-social {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    list-style: none;
+    margin: 2rem 0 0;
+    padding: 0;
+}
+.ds-social__link {
+    display: grid;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border: 1px solid var(--f-line);
+    border-radius: var(--ds-radius);
+    font-size: .95rem;
+    transition: color var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease);
+}
+.ds-social__link:hover {
+    color: var(--ds-ivory);
+    border-color: var(--ds-clay);
+    transform: translateY(-3px);
+}
+
+/* --- reception ------------------------------------------------------- */
+
+.ds-cell__eyebrow {
+    display: block;
+    font-size: .64rem;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    color: var(--f-dim);
+    margin-bottom: .35rem;
+}
+/* .ds-cell__big is display:block; the hotline carries an icon beside the
+   number, so it needs a flex box of its own. */
+.ds-cell__hotline {
+    display: inline-flex !important;
+    align-items: center;
+    gap: .6rem;
+}
+.ds-cell__hotline i { font-size: .85em; color: var(--ds-clay); }
+
+address.ds-cell__note { font-style: normal; }
+
+/* --- your stay: label/value pairs ------------------------------------ */
+
+.ds-cell__facts { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+.ds-cell__facts li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: .45rem 0;
+    border-bottom: 1px solid var(--f-line);
+}
+.ds-cell__facts li:last-child { border-bottom: 0; }
+.ds-cell__facts span {
+    font-size: .68rem;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    color: var(--f-dim);
+}
+.ds-cell__facts strong { font-weight: 400; color: var(--ds-ivory); white-space: nowrap; }
+
 .ds-cell__houses { list-style: none; margin: 0 0 1.5rem; padding: 0; }
 .ds-cell__houses li {
     display: flex;
@@ -875,7 +1431,7 @@ a:hover { color: var(--ds-wine-deep); }
     align-items: center;
     gap: .6rem;
     font-size: .7rem;
-    letter-spacing: .12em;
+    letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     color: var(--f-dim);
 }
@@ -989,19 +1545,44 @@ a:hover { color: var(--ds-wine-deep); }
     text-transform: uppercase;
     color: rgba(250, 247, 242, .45);
 }
+/* The copyright line is the one thing in the base bar that must never be
+   truncated or pushed off, so it holds its own line when space runs out. */
+.ds-footer-base__copy { flex: 1 1 auto; }
+
+/* Legal links. Separated by hairline dividers rather than punctuation, so the
+   row still reads as a group once it wraps onto two lines. */
+.ds-legal-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: .4rem 1rem;
+}
+.ds-legal-links a {
+    position: relative;
+    white-space: nowrap;
+    letter-spacing: var(--ds-track-ui);
+}
+.ds-legal-links a + a::before {
+    content: "";
+    position: absolute;
+    left: -.5rem;
+    top: .15em;
+    bottom: .15em;
+    border-left: 1px solid var(--f-line);
+}
+
 .ds-totop {
     display: inline-flex;
     align-items: center;
     gap: .75rem;
     font-size: .7rem;
-    letter-spacing: .18em;
+    letter-spacing: var(--ds-track-nav);
     text-transform: uppercase;
 }
 .ds-totop svg { transition: transform var(--ds-med) var(--ds-ease); }
 .ds-totop:hover svg { transform: translateY(-5px); }
 
 @media (prefers-reduced-motion: reduce) {
-    .ds-marquee__track { animation: none; }
     .ds-clock__dot { animation: none; }
     .ds-wordmark__char { transform: none; transition: none; }
 }

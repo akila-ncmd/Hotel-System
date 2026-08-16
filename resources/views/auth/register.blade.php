@@ -145,7 +145,7 @@
     }
     .ds-auth__quote {
         font-family: var(--ds-serif);
-        font-weight: 300;
+        font-weight: 400;   /* display face is Regular-only */
         font-size: clamp(2rem, 3.2vw, 3.1rem);
         line-height: 1.15;
         letter-spacing: -0.015em;

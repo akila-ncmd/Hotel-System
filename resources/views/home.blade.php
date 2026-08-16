@@ -138,7 +138,7 @@
     </div>
 </section>
 
-<section class="py-5 bg-white">
+<section id="rooms" class="py-5 bg-white">
     <div class="ds-wide py-5">
         <div class="text-center mb-5">
             <span class="text-warning fw-bold mb-2 d-block">ACCOMMODATIONS</span>
@@ -386,7 +386,7 @@
     </div>
 </section>
 
-<section class="py-5 bg-light">
+<section id="gallery" class="py-5 bg-light">
     <div class="ds-wide py-5">
         <div class="text-center mb-5 ds-reveal">
             <span class="ds-eyebrow ds-eyebrow--center">Gallery</span>
@@ -555,8 +555,11 @@
 
     /* Animated Heading */
     .hero-heading {
-        font-family: 'Playfair Display', serif;
-        font-weight: 700;
+        /* Was 'Playfair Display', which was never actually loaded — the heading
+           had been falling back to the generic serif. This is the largest
+           display moment on the site, so it takes the brand display face. */
+        font-family: var(--ds-display);
+        font-weight: 400;
         font-size: clamp(2.5rem, 7vw, 5.5rem);
         line-height: 1.1;
         margin: 0 auto 1.5rem;
