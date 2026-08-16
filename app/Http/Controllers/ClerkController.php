@@ -9,9 +9,11 @@ use App\Models\TravelAgency;
 use App\Models\TravelAgencyBooking;
 use App\Models\RoomType;
 use App\Models\Branch;
+use App\Models\User;
 use App\Mail\PaymentConfirmation;
 use App\Mail\ReservationConfirmation;
 use App\Services\RoomAvailability;
+use App\Support\CardGuarantee;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -71,6 +73,203 @@ class ClerkController extends Controller
         return view('clerk.dashboard', compact('reservations', 'travelAgencyBookings', 'branch'));
     }
 
+    /**
+     * The front desk's operational view of today.
+     *
+     * A hotel front desk runs on three lists — who is arriving, who is leaving,
+     * and who is currently in the building — rather than on one undifferentiated
+     * table of reservations. This is that view, scoped to the clerk's branch.
+     *
+     * "Today" is the server date. There is no per-branch business date yet; see
+     * docs/gap-analysis.md §9.
+     */
+    public function frontDesk(Request $request)
+    {
+        $branchId = $this->getBranchId($request);
+        $branch = Branch::findOrFail($branchId);
+        $today = Carbon::today();
+
+        $base = fn () => Reservation::where('branch_id', $branchId)
+            ->with(['user', 'roomType', 'room']);
+
+        // Due to arrive today and not yet checked in.
+        $arrivals = $base()
+            ->whereDate('check_in_date', $today)
+            ->whereIn('status', ['pending', 'confirmed'])
+            ->orderBy('id')
+            ->get();
+
+        // In the building and due to leave today.
+        $departures = $base()
+            ->whereDate('check_out_date', $today)
+            ->where('status', 'checked_in')
+            ->orderBy('room_id')
+            ->get();
+
+        // Everyone currently in the building, whenever they leave.
+        $inHouse = $base()
+            ->where('status', 'checked_in')
+            ->orderBy('room_id')
+            ->get();
+
+        // Guests who should have left before today but are still checked in.
+        // Not a status in its own right — derived, and worth surfacing because
+        // it means a room the system thinks is sellable is still occupied.
+        $overdue = $inHouse->filter(
+            fn ($reservation) => $reservation->check_out_date
+                && Carbon::parse($reservation->check_out_date)->lt($today)
+        )->values();
+
+        $roomsTotal = Room::where('branch_id', $branchId)->count();
+        $roomsOccupied = Room::where('branch_id', $branchId)->where('status', 'occupied')->count();
+        $roomsOutOfService = Room::where('branch_id', $branchId)->where('status', 'maintenance')->count();
+
+        return view('clerk.front-desk', [
+            'branch' => $branch,
+            'branchId' => $branchId,
+            'today' => $today,
+            'arrivals' => $arrivals,
+            'departures' => $departures,
+            'inHouse' => $inHouse,
+            'overdue' => $overdue,
+            'roomsTotal' => $roomsTotal,
+            'roomsOccupied' => $roomsOccupied,
+            'roomsOutOfService' => $roomsOutOfService,
+            'roomsAvailable' => max($roomsTotal - $roomsOccupied - $roomsOutOfService, 0),
+        ]);
+    }
+
+    /**
+     * Walk-in form: a guest at the desk with no prior reservation.
+     */
+    public function walkInForm(Request $request)
+    {
+        $branchId = $this->getBranchId($request);
+        $branch = Branch::findOrFail($branchId);
+
+        return view('clerk.walk-in', [
+            'branch' => $branch,
+            'branchId' => $branchId,
+            'customers' => User::where('role', 'customer')->orderBy('name')->get(),
+            'roomTypes' => RoomType::where('is_suite', false)->get(),
+        ]);
+    }
+
+    /**
+     * Book and check in a walk-in guest in one step.
+     *
+     * The ordinary booking paths require check_in_date to be after today, which
+     * is exactly wrong for someone standing at the desk. This creates the
+     * reservation already checked in, with the physical room assigned and the
+     * folio opened — the same end state as booking then immediately checking in.
+     *
+     * Suites are excluded: they are priced by duration and are not a walk-in
+     * product.
+     */
+    public function storeWalkIn(Request $request)
+    {
+        $branchId = $this->getBranchId($request);
+        $today = Carbon::today();
+
+        $data = $request->validate([
+            'user_id' => 'required|exists:users,id',
+            'room_type_id' => 'required|exists:room_types,id',
+            'room_id' => 'required|exists:rooms,id',
+            'number_of_occupants' => 'required|integer|min:1',
+            'check_out_date' => 'required|date|after:today',
+            ...CardGuarantee::rules(),
+        ]);
+
+        $roomType = RoomType::findOrFail($data['room_type_id']);
+
+        if ($roomType->is_suite) {
+            return back()->withErrors([
+                'room_type_id' => 'Residential suites cannot be booked as a walk-in.',
+            ])->withInput();
+        }
+
+        if ($data['number_of_occupants'] > $roomType->max_occupants) {
+            return back()->withErrors([
+                'number_of_occupants' => "This room type allows at most {$roomType->max_occupants} occupants.",
+            ])->withInput();
+        }
+
+        // The chosen room must belong to this branch, match the room type, and
+        // be free right now.
+        $room = Room::where('branch_id', $branchId)
+            ->where('room_type_id', $roomType->id)
+            ->where('status', 'available')
+            ->find($data['room_id']);
+
+        if (! $room) {
+            return back()->withErrors([
+                'room_id' => 'That room is not available in this branch for the selected room type.',
+            ])->withInput();
+        }
+
+        // Still check date-aware capacity: a room being free today says nothing
+        // about reservations already booked across the requested stay.
+        if (! RoomAvailability::hasCapacityFor(
+            $branchId,
+            $roomType->id,
+            $today->toDateString(),
+            $data['check_out_date']
+        )) {
+            return back()->withErrors([
+                'room_type_id' => 'No rooms of this type are available for the requested stay.',
+            ])->withInput();
+        }
+
+        $reservation = DB::transaction(function () use ($data, $branchId, $today, $room, $request) {
+            $reservation = Reservation::create([
+                'user_id' => $data['user_id'],
+                'branch_id' => $branchId,
+                'room_type_id' => $data['room_type_id'],
+                'room_id' => $room->id,
+                'check_in_date' => $today,
+                'check_out_date' => $data['check_out_date'],
+                'number_of_occupants' => $data['number_of_occupants'],
+                'status' => 'checked_in',
+                'credit_card_details' => CardGuarantee::fromRequest($request),
+            ]);
+
+            $room->update(['status' => 'occupied']);
+
+            Billing::create([
+                'reservation_id' => $reservation->id,
+                'user_id' => $reservation->user_id,
+                'branch_id' => $branchId,
+                'total_amount' => $this->calculateTotal($reservation),
+                'payment_status' => 'pending',
+            ]);
+
+            return $reservation;
+        });
+
+        Log::info('Walk-in checked in', [
+            'reservation_id' => $reservation->id,
+            'branch_id' => $branchId,
+            'room_id' => $room->id,
+        ]);
+
+        return redirect()->route('clerk.front-desk', ['branch_id' => $branchId])
+            ->with('success', "Walk-in checked in to room {$room->room_number}.");
+    }
+
+    /**
+     * Rooms of a given type that are free right now, for the walk-in form.
+     */
+    public function availableRoomsForType(Request $request, $roomTypeId)
+    {
+        $branchId = $this->getBranchId($request);
+
+        return Room::where('branch_id', $branchId)
+            ->where('room_type_id', $roomTypeId)
+            ->where('status', 'available')
+            ->orderBy('room_number')
+            ->get(['id', 'room_number']);
+    }
+
     public function showRoomReservationForm(Request $request)
     {
         $branchId = $this->getBranchId($request);
@@ -99,7 +298,7 @@ class ClerkController extends Controller
                 'user_id' => 'required|exists:users,id',
                 'room_type_id' => 'required|exists:room_types,id',
                 'number_of_occupants' => 'required|integer|min:1',
-                'credit_card_details' => 'nullable|string',
+                ...CardGuarantee::rules(),
             ];
 
             if ($isSuite) {
@@ -116,6 +315,10 @@ class ClerkController extends Controller
             }
 
             $data = $request->validate($rules);
+
+            // Never persist the full card number — reduce it to a masked guarantee.
+            $data[CardGuarantee::NUMBER_FIELD] = CardGuarantee::fromRequest($request);
+            unset($data[CardGuarantee::EXPIRY_FIELD]);
 
             // Set branch_id
             $data['branch_id'] = $branchId;
@@ -182,7 +385,11 @@ class ClerkController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Reservation Validation Failed', [
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                // Card fields are excluded — the raw PAN must never reach the log.
+                'request_data' => $request->except([
+                    \App\Support\CardGuarantee::NUMBER_FIELD,
+                    \App\Support\CardGuarantee::EXPIRY_FIELD,
+                ])
             ]);
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
@@ -221,7 +428,7 @@ class ClerkController extends Controller
                 'user_id' => 'required|exists:users,id',
                 'room_type_id' => 'required|exists:room_types,id',
                 'number_of_occupants' => 'required|integer|min:1',
-                'credit_card_details' => 'nullable|string',
+                ...CardGuarantee::rules(),
             ];
 
             if ($isSuite) {
@@ -238,6 +445,10 @@ class ClerkController extends Controller
             }
 
             $data = $request->validate($rules);
+
+            // Never persist the full card number — reduce it to a masked guarantee.
+            $data[CardGuarantee::NUMBER_FIELD] = CardGuarantee::fromRequest($request);
+            unset($data[CardGuarantee::EXPIRY_FIELD]);
 
             $data['branch_id'] = $branchId;
             $roomType = RoomType::find($data['room_type_id']);
@@ -300,7 +511,11 @@ class ClerkController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Reservation Update Validation Failed', [
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                // Card fields are excluded — the raw PAN must never reach the log.
+                'request_data' => $request->except([
+                    \App\Support\CardGuarantee::NUMBER_FIELD,
+                    \App\Support\CardGuarantee::EXPIRY_FIELD,
+                ])
             ]);
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
@@ -361,13 +576,15 @@ class ClerkController extends Controller
         $today = Carbon::today()->format('Y-m-d');
         $request->validate([
             'room_id' => 'required|exists:rooms,id',
-            'credit_card_details' => 'required_if:check_in_date,'.$today.'|string|nullable'
+            ...CardGuarantee::rules('required_if:check_in_date,'.$today),
         ]);
 
         $reservation->update([
             'room_id' => $request->room_id,
             'status' => 'checked_in',
-            'credit_card_details' => $request->credit_card_details ?? $reservation->credit_card_details
+            // Masked guarantee only; falls back to whatever is already on file.
+            'credit_card_details' => CardGuarantee::fromRequest($request)
+                ?? $reservation->credit_card_details,
         ]);
 
         Room::find($request->room_id)->update(['status' => 'occupied']);
@@ -435,7 +652,11 @@ class ClerkController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Check-out Validation Failed', [
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                // Card fields are excluded — the raw PAN must never reach the log.
+                'request_data' => $request->except([
+                    \App\Support\CardGuarantee::NUMBER_FIELD,
+                    \App\Support\CardGuarantee::EXPIRY_FIELD,
+                ])
             ]);
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
@@ -505,7 +726,11 @@ class ClerkController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Check-out Update Validation Failed', [
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                // Card fields are excluded — the raw PAN must never reach the log.
+                'request_data' => $request->except([
+                    \App\Support\CardGuarantee::NUMBER_FIELD,
+                    \App\Support\CardGuarantee::EXPIRY_FIELD,
+                ])
             ]);
             return back()->withErrors($e->errors())->withInput();
         } catch (\Exception $e) {
@@ -795,7 +1020,11 @@ class ClerkController extends Controller
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::warning('Travel Agency Booking Validation Failed', [
                 'errors' => $e->errors(),
-                'request_data' => $request->all()
+                // Card fields are excluded — the raw PAN must never reach the log.
+                'request_data' => $request->except([
+                    \App\Support\CardGuarantee::NUMBER_FIELD,
+                    \App\Support\CardGuarantee::EXPIRY_FIELD,
+                ])
             ]);
             throw $e;
         } catch (\Exception $e) {

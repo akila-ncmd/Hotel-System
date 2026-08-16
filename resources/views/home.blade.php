@@ -1,9 +1,11 @@
 @extends('layouts.app')
 
-@section('content')
+@section('fullwidth')
 <!-- Hero Section - Updated with Image Background -->
 <section class="modern-hero">
-    <!-- Parallax Background Layers -->
+    <!-- Parallax Background Layers.
+         These are the fallback: they render on their own wherever WebGL is
+         unavailable, and are faded out by .has-webgl once the shader is live. -->
     <div class="parallax-container">
         <div class="parallax-layer background-layer" style="background-image: url('images/heroOne.jpg');"></div>
         <div class="parallax-layer mid-layer" style="background-image: url('images/heroTwo.jpg');"></div>
@@ -11,21 +13,24 @@
         <div class="color-overlay"></div>
     </div>
 
+    <!-- WebGL refraction layer. Sits above the parallax fallback, below content. -->
+    <canvas id="hero-canvas" data-texture="{{ asset('images/heroThree.jpg') }}"></canvas>
+
     <!-- Hero Content with Animated Elements -->
     <div class="hero-content-wrapper">
-        <div class="container">
+        <div class="ds-wide">
             <div class="hero-content">
                 <!-- Animated Badge -->
                 <div class="luxury-badge animate__animated animate__fadeIn">
                     <span>5-Star Luxury</span>
                     <svg width="40" height="10" viewBox="0 0 40 10">
-                        <path d="M0,5 L40,5" stroke="#c8a97e" stroke-width="2" stroke-dasharray="5,3"/>
+                        <path d="M0,5 L40,5" stroke="var(--ds-clay)" stroke-width="2" stroke-dasharray="5,3"/>
                     </svg>
                 </div>
 
                 <!-- Main Heading with Split Animation -->
                 <h1 class="hero-heading">
-                    <span class="line"><span class="word">Unparalleled</span></span>
+                    <span class="line"><span class="word">{{ config('app.name') }}</span></span>
                     <span class="line"><span class="word">Hotel</span> <span class="word">Experience</span></span>
                 </h1>
 
@@ -68,7 +73,7 @@
 </section>
 <!-- Features Section - Enhanced -->
 <section id="explore" class="py-5 bg-light">
-    <div class="container py-5">
+    <div class="ds-wide py-5">
         <div class="text-center mb-5">
             <span class="text-warning fw-bold mb-2 d-block">EXPERIENCE LUXURY</span>
             <h2 class="display-5 fw-bold position-relative d-inline-block">Why Choose Us
@@ -134,7 +139,7 @@
 </section>
 
 <section class="py-5 bg-white">
-    <div class="container py-5">
+    <div class="ds-wide py-5">
         <div class="text-center mb-5">
             <span class="text-warning fw-bold mb-2 d-block">ACCOMMODATIONS</span>
             <h2 class="display-5 fw-bold position-relative d-inline-block">Our Rooms
@@ -219,7 +224,7 @@
 
 <!-- Residential Suites Section -->
 <section id="residential-suites" class="py-5 bg-white">
-    <div class="container py-5">
+    <div class="ds-wide py-5">
         <div class="text-center mb-5">
             <span class="text-warning fw-bold mb-2 d-block">EXTENDED STAY</span>
             <h2 class="display-5 fw-bold position-relative d-inline-block">Residential Suites
@@ -233,7 +238,7 @@
         <div class="row align-items-center g-5 mb-5">
             <div class="col-lg-6">
                 <div class="position-relative rounded-4 overflow-hidden">
-                    <img src="https://images.unsplash.com/photo-1584622650111-993a426fbf0a"
+                    <img src="{{ asset('images/hotelOne.jpg') }}"
                          class="img-fluid w-100"
                          alt="Residential Suite Living Area"
                          style="min-height: 400px; object-fit: cover;">
@@ -291,7 +296,7 @@
     <div class="row g-4">
         <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100 hover-lift">
-                <img src="https://images.unsplash.com/photo-1560448204-603b3fc33ddc"
+                <img src="{{ asset('images/hotelTwo.jpg') }}"
                      class="card-img-top"
                      alt="One-Bedroom Suite">
                 <div class="card-body">
@@ -307,7 +312,7 @@
 
         <div class="col-md-6">
             <div class="card border-0 shadow-sm h-100 hover-lift">
-                <img src="https://images.unsplash.com/photo-1583847268964-b28dc8f51f92"
+                <img src="{{ asset('images/hotelThree.jpg') }}"
                      class="card-img-top"
                      alt="Two-Bedroom Suite">
                 <div class="card-body">
@@ -326,8 +331,8 @@
     </div>
 </section>
 
-<section class="py-5 bg-dark text-white position-relative" style="background-image: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('https://images.unsplash.com/photo-1535827841776-24afc1e255ac'); background-size: cover; background-attachment: fixed;">
-    <div class="container py-5">
+<section class="py-5 bg-dark text-white position-relative" style="background-image: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('{{ asset('images/heroTwo.jpg') }}'); background-size: cover; background-attachment: fixed;">
+    <div class="ds-wide py-5">
         <div class="text-center mb-5">
             <span class="text-warning fw-bold mb-2 d-block">GUEST EXPERIENCES</span>
             <h2 class="display-5 fw-bold position-relative d-inline-block">What Our Guests Say
@@ -347,7 +352,9 @@
                     </div>
                     <p class="fs-5 mb-4 fst-italic">"Absolutely stunning hotel with exceptional service. The attention to detail was remarkable and the staff went above and beyond to make our stay perfect. The spa treatments were world-class!"</p>
                     <div class="d-flex align-items-center">
-                        <div class="rounded-circle overflow-hidden me-3" style="width: 60px; height: 60px; background-image: url('https://randomuser.me/api/portraits/women/32.jpg'); background-size: cover;"></div>
+                        {{-- Monogram rather than a stock portrait: no external
+                             dependency, and it suits the brand better. --}}
+                        <div class="ds-monogram me-3" aria-hidden="true">SJ</div>
                         <div>
                             <h4 class="mb-0">Sarah Johnson</h4>
                             <small class="text-white-50">New York, USA</small>
@@ -367,7 +374,7 @@
                     </div>
                     <p class="fs-5 mb-4 fst-italic">"The best hotel experience I've had in years. The infinity pool at sunset is something you have to see to believe. The executive suite was spacious and luxurious with amazing city views."</p>
                     <div class="d-flex align-items-center">
-                        <div class="rounded-circle overflow-hidden me-3" style="width: 60px; height: 60px; background-image: url('https://randomuser.me/api/portraits/men/75.jpg'); background-size: cover;"></div>
+                        <div class="ds-monogram me-3" aria-hidden="true">MC</div>
                         <div>
                             <h4 class="mb-0">Michael Chen</h4>
                             <small class="text-white-50">Toronto, Canada</small>
@@ -380,56 +387,38 @@
 </section>
 
 <section class="py-5 bg-light">
-    <div class="container py-5">
-        <div class="text-center mb-5">
-            <span class="text-warning fw-bold mb-2 d-block">GALLERY</span>
-            <h2 class="display-5 fw-bold position-relative d-inline-block">Moments at Our Hotel
-                <span class="position-absolute bottom-0 start-50 translate-middle-x bg-warning" style="height: 4px; width: 80px;"></span>
-            </h2>
-            <p class="lead text-muted mt-3 mx-auto" style="max-width: 700px;">Capturing the essence of luxury and unforgettable experiences</p>
+    <div class="ds-wide py-5">
+        <div class="text-center mb-5 ds-reveal">
+            <span class="ds-eyebrow ds-eyebrow--center">Gallery</span>
+            <h2 class="mb-3">Moments at our houses</h2>
+            <p class="ds-lead mx-auto">
+                Move your cursor across a photograph &mdash; the light bends as it would through the stone.
+            </p>
         </div>
 
-        <div class="row g-3">
-            <div class="col-md-4 col-6">
-                <div class="gallery-item rounded-3 overflow-hidden hover-zoom position-relative">
-                    <img src="https://images.unsplash.com/photo-1520250497591-112f2f40a3f4" class="object-fit-cover w-100" style="height: 300px;" alt="Hotel lobby">
-                    <div class="gallery-caption position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                        <h5 class="mb-0">Grand Lobby</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6">
-                <div class="gallery-item rounded-3 overflow-hidden hover-zoom position-relative">
-                    <img src="https://images.unsplash.com/photo-1535827841776-24afc1e255ac" class="object-fit-cover w-100" style="height: 300px;" alt="Restaurant">
-                    <div class="gallery-caption position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                        <h5 class="mb-0">Gourmet Restaurant</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-6">
-                <div class="gallery-item rounded-3 overflow-hidden hover-zoom position-relative">
-                    <img src="https://images.unsplash.com/photo-1571896349842-33c89424de2d" class="object-fit-cover w-100" style="height: 300px;" alt="Pool area">
-                    <div class="gallery-caption position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                        <h5 class="mb-0">Infinity Pool</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-8 col-6">
-                <div class="gallery-item rounded-3 overflow-hidden hover-zoom position-relative">
-                    <img src="https://images.unsplash.com/photo-1566073771259-6a8506099945" class="object-fit-cover w-100" style="height: 300px;" alt="Room interior">
-                    <div class="gallery-caption position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                        <h5 class="mb-0">Luxury Suite</h5>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-4 col-12">
-                <div class="gallery-item rounded-3 overflow-hidden hover-zoom position-relative">
-                    <img src="https://images.unsplash.com/photo-1564501049412-61c2a3083791" class="object-fit-cover w-100" style="height: 300px;" alt="Spa">
-                    <div class="gallery-caption position-absolute bottom-0 start-0 w-100 p-3 text-white">
-                        <h5 class="mb-0">Wellness Spa</h5>
-                    </div>
-                </div>
-            </div>
+        {{-- Local images only: a cross-origin photograph would taint the WebGL
+             canvas and the shader upload would throw. --}}
+        <div class="ds-gallery ds-reveal" data-ds-gallery>
+            <figure class="ds-gl-tile">
+                <img src="{{ asset('images/hotelOne.jpg') }}" alt="A guest room with a made bed and city view" loading="lazy">
+                <figcaption class="ds-gl-caption">Guest room</figcaption>
+            </figure>
+            <figure class="ds-gl-tile">
+                <img src="{{ asset('images/beach.jpg') }}" alt="The private beach at dusk" loading="lazy">
+                <figcaption class="ds-gl-caption">Private beach</figcaption>
+            </figure>
+            <figure class="ds-gl-tile">
+                <img src="{{ asset('images/spa.jpg') }}" alt="Treatment room at the spa" loading="lazy">
+                <figcaption class="ds-gl-caption">Wellness spa</figcaption>
+            </figure>
+            <figure class="ds-gl-tile">
+                <img src="{{ asset('images/hotelTwo.jpg') }}" alt="The lobby lounge" loading="lazy">
+                <figcaption class="ds-gl-caption">Lobby lounge</figcaption>
+            </figure>
+            <figure class="ds-gl-tile">
+                <img src="{{ asset('images/hotelThree.jpg') }}" alt="A residential suite living area" loading="lazy">
+                <figcaption class="ds-gl-caption">Residential suite</figcaption>
+            </figure>
         </div>
     </div>
 </section>
@@ -512,6 +501,33 @@
         z-index: 4;
     }
 
+    /* WebGL refraction layer.
+       Hidden until the shader has a texture bound, so a slow network or a
+       missing WebGL context degrades to the CSS parallax rather than to black. */
+    #hero-canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        z-index: 3;
+        opacity: 0;
+        transition: opacity 1.2s ease;
+    }
+
+    #hero-canvas.is-ready {
+        opacity: 1;
+    }
+
+    /* Once WebGL is driving the hero, the photographic layers underneath are
+       redundant — fade them out rather than removing them, so a lost context
+       can fall back without a jump. */
+    .modern-hero.has-webgl .parallax-layer {
+        opacity: 0;
+        transition: opacity 1.2s ease;
+    }
+
     /* Hero Content Styling */
     .hero-content-wrapper {
         position: relative;
@@ -534,7 +550,7 @@
         font-size: 0.9rem;
         letter-spacing: 0.3em;
         text-transform: uppercase;
-        color: #c8a97e;
+        color: var(--ds-clay);
     }
 
     /* Animated Heading */
@@ -596,7 +612,7 @@
     .deco-dot {
         width: 8px;
         height: 8px;
-        background: #c8a97e;
+        background: var(--ds-clay);
         border-radius: 50%;
         margin: 0 1rem;
     }
@@ -661,7 +677,7 @@
     .proof-value {
         font-size: 1.5rem;
         font-weight: 300;
-        color: #c8a97e;
+        color: var(--ds-clay);
         line-height: 1;
     }
 
@@ -709,7 +725,7 @@
 
     .card:hover .icon-wrapper {
         transform: rotateY(180deg);
-        background-color: #ffc107 !important;
+        background-color: var(--ds-clay) !important;
         color: #000 !important;
     }
 
@@ -811,4 +827,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
+@endsection
+
+@section('scripts')
+    {{-- The only page that loads the Vite bundle; everything else on this site
+         is served from CDNs. Kept as a module so three.js tree-shakes. --}}
+    @vite(['resources/js/hero.js', 'resources/js/gallery.js'])
 @endsection

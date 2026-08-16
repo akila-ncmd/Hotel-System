@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Support\Money;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -20,7 +21,7 @@ class RevenueReportExport implements FromCollection, WithHeadings, ShouldAutoSiz
         return $this->reports->map(function ($report) {
             return [
                 'Date' => $report->date,
-                'Total Revenue ($)' => number_format($report->total_revenue ?? 0, 2),
+                'Total Revenue (' . Money::code() . ')' => Money::plain($report->total_revenue),
             ];
         });
     }
@@ -29,7 +30,7 @@ class RevenueReportExport implements FromCollection, WithHeadings, ShouldAutoSiz
     {
         return [
             'Date',
-            'Total Revenue ($)',
+            'Total Revenue (' . Money::code() . ')',
         ];
     }
 }

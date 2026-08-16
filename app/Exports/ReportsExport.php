@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Support\Money;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -30,7 +31,7 @@ class ReportsExport implements FromCollection, WithHeadings, ShouldAutoSize
                 'Date' => optional($report->report_date)->format('Y-m-d'),
                 'Total Occupancy' => $report->total_occupancy,
                 'No-Show Count' => $report->no_show_count,
-                'Total Revenue ($)' => number_format($report->total_revenue ?? 0, 2),
+                'Total Revenue (' . Money::code() . ')' => Money::plain($report->total_revenue),
             ];
         });
     }
@@ -41,7 +42,7 @@ class ReportsExport implements FromCollection, WithHeadings, ShouldAutoSize
             'Date',
             'Total Occupancy',
             'No-Show Count',
-            'Total Revenue ($)',
+            'Total Revenue (' . Money::code() . ')',
         ];
     }
 }

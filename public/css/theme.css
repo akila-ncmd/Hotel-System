@@ -1,0 +1,1027 @@
+/* ==========================================================================
+   Diamond Shine — design layer
+   --------------------------------------------------------------------------
+   Loaded on every page, after Bootstrap, from layouts/app.blade.php.
+
+   Bootstrap keeps doing the grid and the component plumbing; this file owns
+   the brand: colour, type, spacing and the handful of components that carry
+   the look. Everything is expressed as tokens so a change lands everywhere.
+
+   Direction: a calm warm-neutral base (Tandjung Sari) with decisive,
+   high-contrast details and one saturated accent (The Drake).
+
+   Sections
+     1. Tokens
+     2. Base + typography
+     3. Motion primitives
+     4. Navigation
+     5. Buttons
+     6. Forms
+     7. Cards, panels, tables
+     8. Editorial layout helpers
+     9. Footer
+    10. Reduced motion + print
+   ========================================================================== */
+
+/* 1. Tokens ---------------------------------------------------------------- */
+
+:root {
+    /* Surface */
+    --ds-ivory:     #FAF7F2;   /* page ground */
+    --ds-shell:     #F3EDE4;   /* alternating band */
+    --ds-sand:      #E8DCCB;   /* rules, inactive chips */
+    --ds-white:     #FFFFFF;
+
+    /* Ink */
+    --ds-charcoal:  #2B2723;   /* body + headings */
+    --ds-ink:       #1A1715;   /* darkest, footer ground */
+    --ds-muted:     #7A716A;   /* secondary copy */
+    --ds-faint:     #A9A099;   /* meta, captions */
+
+    /* Accent */
+    --ds-wine:      #6B2F3E;
+    --ds-wine-deep: #56242F;
+    --ds-clay:      #B08D64;   /* gilt detail, rules, focus ring */
+
+    /* Status — desaturated to sit inside the palette */
+    --ds-ok:        #4F6B52;
+    --ds-warn:      #9A7233;
+    --ds-danger:    #8C3B36;
+
+    /* Type */
+    --ds-serif: "Cormorant Garamond", Georgia, "Times New Roman", serif;
+    --ds-sans:  "Jost", "Helvetica Neue", Arial, sans-serif;
+
+    /* A fluid display scale — clamp() keeps headings sane on phones without
+       a pile of breakpoints. */
+    --ds-fs-hero: clamp(2.75rem, 7vw, 6rem);
+    --ds-fs-h1:   clamp(2.25rem, 4.5vw, 3.75rem);
+    --ds-fs-h2:   clamp(1.75rem, 3vw, 2.75rem);
+    --ds-fs-h3:   clamp(1.35rem, 2vw, 1.75rem);
+    --ds-fs-lead: clamp(1.05rem, 1.3vw, 1.25rem);
+
+    /* Rhythm */
+    --ds-section:  clamp(4rem, 9vw, 8rem);
+    --ds-gutter:   clamp(1.25rem, 4vw, 3rem);
+
+    /* Luxury reads as near-square; almost no rounding anywhere. */
+    --ds-radius:    2px;
+    --ds-radius-lg: 3px;
+
+    --ds-shadow:    0 1px 2px rgba(43, 39, 35, .04), 0 8px 24px rgba(43, 39, 35, .06);
+    --ds-shadow-lg: 0 2px 4px rgba(43, 39, 35, .05), 0 24px 60px rgba(43, 39, 35, .10);
+
+    --ds-ease: cubic-bezier(.22, .61, .36, 1);
+    --ds-slow: 700ms;
+    --ds-med:  380ms;
+    --ds-fast: 200ms;
+}
+
+/* 2. Base + typography ----------------------------------------------------- */
+
+body {
+    background-color: var(--ds-ivory);
+    color: var(--ds-charcoal);
+    font-family: var(--ds-sans);
+    font-weight: 300;
+    font-size: 1rem;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, .ds-display {
+    font-family: var(--ds-serif);
+    font-weight: 400;
+    color: var(--ds-charcoal);
+    line-height: 1.12;
+    /* Slightly tight tracking is the Drake influence — it stops a large serif
+       from feeling loose and dated. */
+    letter-spacing: -0.015em;
+}
+
+h1 { font-size: var(--ds-fs-h1); }
+h2 { font-size: var(--ds-fs-h2); }
+h3 { font-size: var(--ds-fs-h3); letter-spacing: -0.01em; }
+
+p { color: var(--ds-charcoal); }
+
+a {
+    color: var(--ds-wine);
+    text-decoration: none;
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+a:hover { color: var(--ds-wine-deep); }
+
+::selection { background: var(--ds-wine); color: var(--ds-ivory); }
+
+/* Keyboard focus must stay obvious — the accent ring is part of the design,
+   not an afterthought. */
+:focus-visible {
+    outline: 2px solid var(--ds-clay);
+    outline-offset: 3px;
+    border-radius: var(--ds-radius);
+}
+
+/* Small caps label — the connective tissue of the whole design. */
+.ds-eyebrow {
+    font-family: var(--ds-sans);
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--ds-clay);
+    display: inline-flex;
+    align-items: center;
+    gap: .75rem;
+    margin-bottom: 1.25rem;
+}
+.ds-eyebrow::before {
+    content: "";
+    width: 2rem;
+    height: 1px;
+    background: currentColor;
+    opacity: .6;
+}
+.ds-eyebrow--center::before { display: none; }
+
+.ds-lead {
+    font-size: var(--ds-fs-lead);
+    color: var(--ds-muted);
+    font-weight: 300;
+    line-height: 1.8;
+    max-width: 60ch;
+}
+
+.ds-muted { color: var(--ds-muted) !important; }
+.ds-faint { color: var(--ds-faint) !important; }
+
+/* A hairline rule used to separate editorial blocks. */
+.ds-rule {
+    height: 1px;
+    background: var(--ds-sand);
+    border: 0;
+    opacity: 1;
+    margin: 0;
+}
+
+/* 3. Motion primitives ----------------------------------------------------- */
+
+/* Elements opt in with .ds-reveal; layouts/app.blade.php adds .is-visible via
+   IntersectionObserver. Children can stagger with --ds-delay.
+
+   The `.ds-js` gate matters: the hidden state is only applied once an inline
+   script in <head> has confirmed JavaScript is running. Without it, a JS error
+   or a blocked bundle would leave the whole page permanently at opacity 0 —
+   content must never depend on animation code succeeding. */
+.ds-js .ds-reveal {
+    opacity: 0;
+    transform: translateY(24px);
+    transition:
+        opacity var(--ds-slow) var(--ds-ease),
+        transform var(--ds-slow) var(--ds-ease);
+    transition-delay: var(--ds-delay, 0ms);
+    will-change: opacity, transform;
+}
+.ds-js .ds-reveal.is-visible {
+    opacity: 1;
+    transform: none;
+}
+
+/* Image that eases down from a slight zoom as it enters — the Tandjung Sari
+   gallery move. */
+.ds-reveal-img { overflow: hidden; }
+.ds-js .ds-reveal-img img,
+.ds-js .ds-reveal-img .ds-img {
+    transform: scale(1.12);
+    transition: transform 1400ms var(--ds-ease);
+}
+.ds-js .ds-reveal-img.is-visible img,
+.ds-js .ds-reveal-img.is-visible .ds-img { transform: scale(1); }
+
+/* Photographs: consistent crop + a slow push on hover. */
+.ds-figure {
+    position: relative;
+    overflow: hidden;
+    background: var(--ds-sand);
+    border-radius: var(--ds-radius);
+}
+.ds-figure img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform var(--ds-slow) var(--ds-ease);
+}
+.ds-figure:hover img { transform: scale(1.05); }
+
+.ds-ratio-4-5  { aspect-ratio: 4 / 5; }
+.ds-ratio-3-2  { aspect-ratio: 3 / 2; }
+.ds-ratio-16-9 { aspect-ratio: 16 / 9; }
+
+/* 4. Navigation ------------------------------------------------------------ */
+
+.navbar {
+    background-color: rgba(250, 247, 242, .82) !important;
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border-bottom: 1px solid transparent;
+    box-shadow: none !important;
+    transition: background-color var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease);
+    padding-block: .85rem;
+}
+/* Set once the page has scrolled, so the bar only asserts itself over content. */
+.navbar.is-stuck {
+    background-color: rgba(250, 247, 242, .96) !important;
+    border-bottom-color: var(--ds-sand);
+}
+
+.navbar .nav-link {
+    font-family: var(--ds-sans);
+    font-size: .74rem !important;
+    font-weight: 400;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ds-charcoal) !important;
+    background: none !important;
+    border-radius: 0;
+    padding: .5rem .25rem !important;
+    margin: 0 .9rem !important;
+    position: relative;
+}
+.navbar .nav-link i { display: none; }   /* the icons fight the type */
+
+/* Underline that draws in from the left. */
+.navbar .nav-link::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: .1rem;
+    width: 100%; height: 1px;
+    background: var(--ds-wine);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.navbar .nav-link:hover::after,
+.navbar .nav-link.active::after { transform: scaleX(1); }
+.navbar .nav-link:hover,
+.navbar .nav-link.active { color: var(--ds-wine) !important; }
+
+.navbar .logout-btn { color: var(--ds-muted) !important; }
+.navbar .logout-btn:hover { color: var(--ds-danger) !important; }
+.navbar .logout-btn::after { background: var(--ds-danger); }
+
+.navbar-toggler { border: 1px solid var(--ds-sand); border-radius: var(--ds-radius); }
+.navbar-toggler:focus { box-shadow: none; }
+
+/* 5. Buttons --------------------------------------------------------------- */
+
+.btn {
+    font-family: var(--ds-sans);
+    font-size: .74rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    border-radius: var(--ds-radius);
+    padding: .95rem 2rem;
+    border-width: 1px;
+    transition: background-color var(--ds-med) var(--ds-ease),
+                color var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease),
+                transform var(--ds-fast) var(--ds-ease);
+}
+.btn:active { transform: translateY(1px); }
+
+.btn-primary,
+.btn-dark {
+    background-color: var(--ds-wine);
+    border-color: var(--ds-wine);
+    color: var(--ds-ivory);
+}
+.btn-primary:hover, .btn-primary:focus,
+.btn-dark:hover, .btn-dark:focus {
+    background-color: var(--ds-wine-deep);
+    border-color: var(--ds-wine-deep);
+    color: var(--ds-ivory);
+}
+
+.btn-outline-primary,
+.btn-outline-dark,
+.btn-outline-secondary {
+    background-color: transparent;
+    border-color: var(--ds-charcoal);
+    color: var(--ds-charcoal);
+}
+.btn-outline-primary:hover,
+.btn-outline-dark:hover,
+.btn-outline-secondary:hover {
+    background-color: var(--ds-charcoal);
+    border-color: var(--ds-charcoal);
+    color: var(--ds-ivory);
+}
+
+.btn-secondary {
+    background-color: transparent;
+    border-color: var(--ds-sand);
+    color: var(--ds-charcoal);
+}
+.btn-secondary:hover {
+    background-color: var(--ds-sand);
+    border-color: var(--ds-sand);
+    color: var(--ds-charcoal);
+}
+
+.btn-danger {
+    background-color: transparent;
+    border-color: var(--ds-danger);
+    color: var(--ds-danger);
+}
+.btn-danger:hover {
+    background-color: var(--ds-danger);
+    border-color: var(--ds-danger);
+    color: var(--ds-ivory);
+}
+
+.btn-sm { padding: .55rem 1.15rem; font-size: .66rem; letter-spacing: .14em; }
+.btn-lg { padding: 1.1rem 2.5rem; font-size: .78rem; }
+.btn-link { color: var(--ds-muted); letter-spacing: .12em; }
+.btn-link:hover { color: var(--ds-wine); }
+
+/* A text link with a rule under it, for tertiary actions. */
+.ds-link {
+    font-size: .74rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ds-charcoal);
+    padding-bottom: .3rem;
+    border-bottom: 1px solid var(--ds-clay);
+    display: inline-block;
+    transition: color var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease);
+}
+.ds-link:hover { color: var(--ds-wine); border-color: var(--ds-wine); }
+
+/* 6. Forms ----------------------------------------------------------------- */
+
+.form-label {
+    font-family: var(--ds-sans);
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ds-muted);
+    margin-bottom: .5rem;
+}
+
+.form-control,
+.form-select {
+    background-color: transparent;
+    border: 0;
+    border-bottom: 1px solid var(--ds-sand);
+    border-radius: 0;
+    padding: .7rem 0;
+    font-family: var(--ds-sans);
+    font-weight: 300;
+    font-size: 1rem;
+    color: var(--ds-charcoal);
+    box-shadow: none;
+    transition: border-color var(--ds-med) var(--ds-ease);
+}
+.form-control:focus,
+.form-select:focus {
+    background-color: transparent;
+    border-bottom-color: var(--ds-wine);
+    box-shadow: none;
+    color: var(--ds-charcoal);
+    outline: none;
+}
+.form-control::placeholder { color: var(--ds-faint); font-weight: 300; }
+.form-control-lg, .form-select-lg { font-size: 1.05rem; padding: .8rem 0; }
+
+.form-select {
+    /* Bootstrap's caret is mid-grey; match it to the palette. */
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%237A716A' stroke-width='1.2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-position: right .25rem center;
+    background-size: 14px 12px;
+}
+
+.form-text { color: var(--ds-faint); font-size: .82rem; }
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-bottom-color: var(--ds-danger);
+    background-image: none;
+}
+.invalid-feedback { color: var(--ds-danger); font-size: .82rem; }
+
+.form-check-input { border-color: var(--ds-sand); border-radius: var(--ds-radius); }
+.form-check-input:checked { background-color: var(--ds-wine); border-color: var(--ds-wine); }
+.form-check-input:focus { box-shadow: none; border-color: var(--ds-clay); }
+
+/* 7. Cards, panels, tables -------------------------------------------------- */
+
+.card {
+    background-color: var(--ds-white);
+    border: 1px solid var(--ds-sand);
+    border-radius: var(--ds-radius);
+    box-shadow: none;
+    transition: box-shadow var(--ds-med) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease);
+}
+.card.shadow-sm, .card.shadow-lg { box-shadow: var(--ds-shadow) !important; }
+
+/* Opt-in lift, so static panels don't wobble on hover. */
+.ds-card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--ds-shadow-lg);
+    border-color: transparent;
+}
+
+.ds-panel {
+    background: var(--ds-white);
+    border: 1px solid var(--ds-sand);
+    border-radius: var(--ds-radius);
+    padding: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.alert {
+    border-radius: var(--ds-radius);
+    border: 1px solid transparent;
+    border-left-width: 2px;
+    font-size: .92rem;
+    padding: 1rem 1.25rem;
+}
+.alert-success { background: #F1F4F1; border-left-color: var(--ds-ok);     color: #35462F; }
+.alert-danger  { background: #F8F0EF; border-left-color: var(--ds-danger); color: #6E2F2B; }
+.alert-warning { background: #F9F4E9; border-left-color: var(--ds-warn);   color: #6B5220; }
+.alert-info    { background: #F1F2F4; border-left-color: var(--ds-muted);  color: #3E4A55; }
+
+.table {
+    --bs-table-bg: transparent;
+    color: var(--ds-charcoal);
+    border-color: var(--ds-sand);
+    margin-bottom: 0;
+}
+.table > thead th {
+    font-family: var(--ds-sans);
+    font-size: .66rem;
+    font-weight: 500;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--ds-muted);
+    border-bottom: 1px solid var(--ds-sand);
+    padding: 1rem .75rem;
+    background: transparent;
+}
+.table > tbody td {
+    padding: 1.15rem .75rem;
+    border-color: var(--ds-sand);
+    vertical-align: middle;
+    font-weight: 300;
+}
+.table-hover > tbody > tr:hover > * {
+    background-color: var(--ds-shell);
+    color: var(--ds-charcoal);
+}
+.table-bordered { border: 0; }
+.table-bordered > :not(caption) > * > * { border-width: 0 0 1px 0; }
+
+/* Status pill, driven by the reservation lifecycle. */
+.ds-status {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    font-family: var(--ds-sans);
+    font-size: .64rem;
+    font-weight: 500;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: .35rem .7rem;
+    border-radius: 100px;
+    border: 1px solid currentColor;
+    white-space: nowrap;
+}
+.ds-status::before {
+    content: "";
+    width: .35rem; height: .35rem;
+    border-radius: 50%;
+    background: currentColor;
+}
+.ds-status--pending     { color: var(--ds-warn); }
+.ds-status--confirmed   { color: var(--ds-ok); }
+.ds-status--checked_in  { color: var(--ds-wine); }
+.ds-status--checked_out { color: var(--ds-faint); }
+.ds-status--cancelled   { color: var(--ds-danger); }
+.ds-status--no_show     { color: var(--ds-danger); }
+
+/* Price display — serif, because it is a headline not a data point. */
+.ds-price {
+    font-family: var(--ds-serif);
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--ds-charcoal);
+    line-height: 1;
+}
+.ds-price small {
+    font-family: var(--ds-sans);
+    font-size: .68rem;
+    font-weight: 400;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ds-faint);
+    margin-left: .4rem;
+}
+
+/* 8. Editorial layout helpers ---------------------------------------------- */
+
+.ds-section       { padding-block: var(--ds-section); }
+.ds-section--tight{ padding-block: calc(var(--ds-section) * .6); }
+.ds-band          { background: var(--ds-shell); }
+.ds-band-dark     { background: var(--ds-ink); color: var(--ds-ivory); }
+.ds-band-dark h1, .ds-band-dark h2, .ds-band-dark h3 { color: var(--ds-ivory); }
+.ds-band-dark p   { color: rgba(250, 247, 242, .72); }
+
+/* Centred measure for editorial intros. */
+.ds-measure { max-width: 46rem; margin-inline: auto; }
+
+/* Full-bleed container.
+   Bootstrap's .container caps at 1320px, which leaves large dead gutters on a
+   wide display. This uses the whole viewport and keeps only a proportional
+   margin, so the layout breathes instead of floating in the middle. Capped at
+   a very wide max so ultrawide monitors don't stretch lines past readability. */
+.ds-wide {
+    width: 100%;
+    max-width: 2200px;
+    margin-inline: auto;
+    /* Minimum 1.5rem is deliberate: Bootstrap's .row.g-5 pulls -1.5rem of
+       negative margin, so anything less lets a wide gutter row poke out and
+       creates horizontal scroll on phones. */
+    padding-inline: clamp(1.5rem, 5vw, 5.5rem);
+}
+
+/* Page header used across the authenticated customer screens. */
+.ds-page-head {
+    padding-block: clamp(2.5rem, 6vw, 5rem) clamp(1.5rem, 3vw, 2.5rem);
+    border-bottom: 1px solid var(--ds-sand);
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+}
+.ds-page-head h1 { margin: 0; }
+
+/* An oversized serif numeral for step / stat displays. */
+.ds-numeral {
+    font-family: var(--ds-serif);
+    font-size: clamp(2.5rem, 5vw, 4rem);
+    font-weight: 300;
+    line-height: 1;
+    color: var(--ds-clay);
+}
+
+/* Monogram avatar — replaces stock portraits. */
+.ds-monogram {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    border: 1px solid var(--ds-clay);
+    font-family: var(--ds-serif);
+    font-size: 1.25rem;
+    letter-spacing: .06em;
+    color: var(--ds-clay);
+    background: transparent;
+}
+
+/* Empty state */
+.ds-empty {
+    text-align: center;
+    padding: clamp(3rem, 8vw, 6rem) 1.5rem;
+    border: 1px dashed var(--ds-sand);
+    border-radius: var(--ds-radius);
+}
+.ds-empty i { font-size: 2rem; color: var(--ds-sand); display: block; margin-bottom: 1rem; }
+
+/* Bootstrap utility overrides. The home page marks its section eyebrows and
+   accent rules with .text-warning / .bg-warning, which is Bootstrap's amber;
+   remap to the brand's clay rather than rewriting 850 lines of markup. */
+.text-warning { color: var(--ds-clay) !important; }
+.bg-warning   { background-color: var(--ds-clay) !important; }
+.bg-light     { background-color: var(--ds-shell) !important; }
+.bg-white     { background-color: var(--ds-white) !important; }
+.text-muted   { color: var(--ds-muted) !important; }
+
+/* Section eyebrows on the home page use .text-warning.fw-bold; give them the
+   same micro-type treatment as .ds-eyebrow so the pages agree. */
+.text-warning.fw-bold.d-block {
+    font-size: .7rem;
+    font-weight: 500 !important;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+}
+
+/* 8b. WebGL gallery --------------------------------------------------------- */
+
+/* The grid is a plain <img> layout. resources/js/gallery.js swaps in a canvas
+   per tile once its texture is ready; until then (or forever, without WebGL)
+   the photograph shows normally. */
+.ds-gallery {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: clamp(.5rem, 1.5vw, 1rem);
+}
+@media (min-width: 992px) {
+    .ds-gallery {
+        grid-template-columns: repeat(4, 1fr);
+        grid-auto-rows: clamp(9rem, 14vw, 14rem);
+    }
+    /* A deliberately irregular rhythm — a straight 4-up grid reads as a
+       stock template, which is the opposite of the reference sites. */
+    .ds-gallery > :nth-child(1) { grid-column: span 2; grid-row: span 2; }
+    .ds-gallery > :nth-child(4) { grid-row: span 2; }
+    .ds-gallery > :nth-child(5) { grid-column: span 2; }
+}
+
+.ds-gl-tile {
+    position: relative;
+    overflow: hidden;
+    margin: 0;
+    background: var(--ds-sand);
+    border-radius: var(--ds-radius);
+    min-height: 9rem;
+    cursor: crosshair;
+}
+.ds-gl-tile img,
+.ds-gl-tile .ds-gl-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.ds-gl-tile .ds-gl-canvas { position: absolute; inset: 0; }
+
+/* Once WebGL takes over, the source image stays in the DOM for accessibility
+   and for its alt text, but is visually replaced by the canvas. */
+.ds-gl-tile.is-webgl img { opacity: 0; }
+
+/* Non-WebGL tiles still get a gentle push, so the grid never feels dead. */
+.ds-gl-tile:not(.is-webgl) img {
+    transition: transform var(--ds-slow) var(--ds-ease);
+}
+.ds-gl-tile:not(.is-webgl):hover img { transform: scale(1.05); }
+
+.ds-gl-caption {
+    position: absolute;
+    left: 1rem; bottom: .85rem;
+    font-size: .66rem;
+    font-weight: 500;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ds-ivory);
+    text-shadow: 0 1px 12px rgba(26, 23, 21, .65);
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity var(--ds-med) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease);
+}
+.ds-gl-tile:hover .ds-gl-caption { opacity: 1; transform: none; }
+
+/* 9. Footer ---------------------------------------------------------------- */
+
+/* Dark, monochromatic, flat, large type, bento grid — the shared vocabulary of
+   the reference footers. One ink surface; hierarchy comes from type size and
+   hairline rules rather than from colour. */
+
+.ds-footer {
+    --f-line: rgba(250, 247, 242, .14);
+    --f-dim:  rgba(250, 247, 242, .55);
+    --f-mid:  rgba(250, 247, 242, .78);
+
+    background: var(--ds-ink);
+    color: var(--f-mid);
+    margin-top: var(--ds-section);
+    padding-block: clamp(2rem, 5vw, 3.5rem) 1.75rem;
+    font-size: .92rem;
+    overflow: hidden;   /* the wordmark is allowed to run wide */
+}
+
+.ds-footer a { color: var(--f-mid); }
+.ds-footer a:hover { color: var(--ds-ivory); }
+
+/* --- marquee --------------------------------------------------------- */
+
+.ds-marquee {
+    border-block: 1px solid var(--f-line);
+    padding-block: .9rem;
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+            mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+.ds-marquee__track {
+    display: flex;
+    align-items: center;
+    gap: 2.5rem;
+    width: max-content;
+    animation: ds-marquee 34s linear infinite;
+}
+.ds-marquee__track span {
+    font-size: .7rem;
+    font-weight: 400;
+    letter-spacing: .24em;
+    text-transform: uppercase;
+    color: var(--f-dim);
+    white-space: nowrap;
+}
+.ds-marquee__dot { color: var(--ds-clay); font-size: .55rem !important; }
+/* Two identical halves, so translating by exactly -50% loops seamlessly. */
+@keyframes ds-marquee { to { transform: translateX(-50%); } }
+.ds-footer:hover .ds-marquee__track { animation-play-state: paused; }
+
+/* --- bento grid ------------------------------------------------------ */
+
+/* The footer is a container, so everything inside responds to the space the
+   footer actually has rather than to the viewport. That keeps it correct if it
+   is ever placed in a narrower column, and removes the guesswork of viewport
+   breakpoints that only approximate the real available width. */
+.ds-footer .ds-wide {
+    container-type: inline-size;
+    container-name: footer;
+}
+
+.ds-bento {
+    display: grid;
+    /* Fluid by default: as many columns as fit, each at least 15rem, and never
+       wider than the container. No breakpoint decides this — the content does,
+       so it is correct at every size including the awkward in-between ones. */
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+
+    /* The hairlines are the 1px gaps, with the grid's own background showing
+       through. This is what makes the rules correct at *any* column count —
+       per-cell borders would need to know how many columns there are, which
+       auto-fit deliberately decides at runtime. */
+    gap: 1px;
+    background: var(--f-line);
+    border: 1px solid var(--f-line);
+    border-radius: var(--ds-radius);
+    overflow: hidden;
+}
+
+/* Only once there is genuinely room does the layout become deliberately
+   asymmetric — the "unusual layout" the reference footers share. */
+@container footer (min-width: 64rem) {
+    .ds-bento {
+        grid-template-columns: 1.6fr 1fr 1.2fr 1.2fr;
+    }
+    .ds-cell--lead { grid-row: span 2; }
+}
+
+.ds-cell {
+    position: relative;
+    /* Padding scales with the container, not the viewport. */
+    padding: clamp(1.35rem, 3cqi, 2.25rem);
+    background: var(--ds-ink);
+    transition: background-color var(--ds-med) var(--ds-ease);
+    min-width: 0;   /* let long strings shrink instead of forcing overflow */
+}
+.ds-cell:hover { background: #211d1a; }
+
+/* The emblem is decorative, so it always takes the full final row. That avoids
+   the orphan cell a fixed 2-column layout leaves at tablet width. */
+.ds-cell--mark { grid-column: 1 / -1; }
+
+.ds-cell__label {
+    display: block;
+    font-size: .64rem;
+    font-weight: 500;
+    letter-spacing: .24em;
+    text-transform: uppercase;
+    color: var(--ds-clay);
+    margin-bottom: 1.5rem;
+}
+
+.ds-cell--lead { display: flex; flex-direction: column; }
+.ds-cell__statement {
+    font-family: var(--ds-serif);
+    font-size: clamp(1.35rem, 2vw, 1.9rem);
+    font-weight: 300;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    color: var(--ds-ivory);
+    margin: 0 0 auto;
+    max-width: 22ch;
+}
+.ds-cell__cta {
+    display: inline-flex;
+    align-items: center;
+    gap: .9rem;
+    margin-top: 2.5rem;
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--ds-ivory) !important;
+    align-self: flex-start;
+    padding-bottom: .5rem;
+    border-bottom: 1px solid var(--ds-clay);
+}
+.ds-cell__cta svg { transition: transform var(--ds-med) var(--ds-ease); }
+.ds-cell__cta:hover svg { transform: translateX(6px); }
+
+/* Link list: the label slides right and a rule draws in beneath it. */
+.ds-cell__list { list-style: none; margin: 0; padding: 0; }
+.ds-cell__list li + li { margin-top: .5rem; }
+.ds-cell__list a {
+    display: inline-block;
+    position: relative;
+    padding-bottom: 2px;
+}
+.ds-cell__list a span {
+    display: inline-block;
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.ds-cell__list a::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.ds-cell__list a:hover span { transform: translateX(8px); }
+.ds-cell__list a:hover::after { transform: scaleX(1); }
+
+.ds-cell__houses { list-style: none; margin: 0 0 1.5rem; padding: 0; }
+.ds-cell__houses li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .45rem 0;
+    border-bottom: 1px solid var(--f-line);
+}
+.ds-cell__houses li:last-child { border-bottom: 0; }
+.ds-cell__houses strong { font-weight: 400; color: var(--ds-ivory); }
+.ds-cell__houses span { color: var(--f-dim); font-size: .84rem; }
+
+.ds-clock {
+    display: flex;
+    align-items: center;
+    gap: .6rem;
+    font-size: .7rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--f-dim);
+}
+.ds-clock__dot {
+    width: .4rem; height: .4rem;
+    border-radius: 50%;
+    background: var(--ds-ok);
+    box-shadow: 0 0 0 0 rgba(79, 107, 82, .7);
+    animation: ds-pulse 2.4s ease-out infinite;
+}
+@keyframes ds-pulse {
+    70%  { box-shadow: 0 0 0 .5rem rgba(79, 107, 82, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(79, 107, 82, 0); }
+}
+
+.ds-cell__big {
+    display: block;
+    font-family: var(--ds-serif);
+    font-size: clamp(1.1rem, 1.5vw, 1.4rem);
+    color: var(--ds-ivory) !important;
+    margin-bottom: .5rem;
+    width: fit-content;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--ds-med) var(--ds-ease);
+}
+.ds-cell__big:hover { border-bottom-color: var(--ds-clay); }
+.ds-cell__note { font-size: .82rem; color: var(--f-dim); margin-top: 1rem; }
+
+.ds-cell--mark {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-block: 1.25rem;
+}
+.ds-cell--mark img {
+    color: var(--ds-clay);
+    opacity: .55;
+    transition: transform 900ms var(--ds-ease), opacity var(--ds-med) var(--ds-ease);
+}
+.ds-cell--mark:hover img { transform: rotate(180deg); opacity: 1; }
+
+/* --- oversized wordmark ---------------------------------------------- */
+
+/* The signature move of all four references: type at architectural scale.
+   Sized in vw so it always spans the viewport, whatever the name's length. */
+.ds-wordmark {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: .2em;
+    margin-top: clamp(2rem, 5cqi, 4.5rem);
+    line-height: .84;
+    user-select: none;
+    /* Starting size only. The brand name's length and the available width both
+       vary, so a fixed vw value either clips or leaves a gap — the layout
+       script measures the glyphs and sets the exact size that fills the row.
+       This value is the conservative fallback if the script never runs. */
+    font-size: clamp(1.75rem, 6vw, 8rem);
+}
+
+/* Narrow footers stack the words so each fills the width, rather than letting
+   the whole name shrink into illegibility. The script sets this class: only it
+   can know the rendered glyph widths. */
+.ds-wordmark.is-stacked {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+}
+
+.ds-wordmark__word {
+    display: flex;
+    justify-content: space-between;
+    /* Never let flex compress a word: shrinking silently clips glyphs behind
+       the overflow below, and makes measurement lie about whether it fits.
+       The script is responsible for choosing a size that actually fits. */
+    flex-shrink: 0;
+    /* Each word clips its own letters, so the rise animation works on every
+       line once the words are stacked. */
+    overflow: hidden;
+}
+
+.ds-wordmark__char {
+    font-family: var(--ds-serif);
+    font-size: 1em;
+    font-weight: 400;
+    text-transform: uppercase;
+    color: var(--ds-ivory);
+    /* Each letter rises independently; --i staggers them left to right. */
+    transform: translateY(110%);
+    transition: transform 900ms var(--ds-ease);
+    transition-delay: calc(var(--i) * 45ms);
+}
+.ds-wordmark.is-visible .ds-wordmark__char { transform: translateY(0); }
+
+/* --- base ------------------------------------------------------------ */
+
+.ds-footer-base {
+    display: flex;
+    flex-wrap: wrap;
+    /* Sits side by side when there is room and stacks when there isn't, with
+       no breakpoint: the gap value decides. */
+    justify-content: space-between;
+    align-items: center;
+    gap: .75rem 1.5rem;
+    border-top: 1px solid var(--f-line);
+    margin-top: clamp(1.5rem, 3vw, 2.5rem);
+    padding-top: 1.5rem;
+    font-size: .74rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: rgba(250, 247, 242, .45);
+}
+.ds-totop {
+    display: inline-flex;
+    align-items: center;
+    gap: .75rem;
+    font-size: .7rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+}
+.ds-totop svg { transition: transform var(--ds-med) var(--ds-ease); }
+.ds-totop:hover svg { transform: translateY(-5px); }
+
+@media (prefers-reduced-motion: reduce) {
+    .ds-marquee__track { animation: none; }
+    .ds-clock__dot { animation: none; }
+    .ds-wordmark__char { transform: none; transition: none; }
+}
+
+/* 10. Reduced motion + print ------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+    /* Content must still be visible — never leave a reveal stuck at opacity 0. */
+    .ds-js .ds-reveal { opacity: 1; transform: none; transition: none; }
+    .ds-js .ds-reveal-img img, .ds-js .ds-reveal-img .ds-img { transform: none; transition: none; }
+    .ds-figure:hover img { transform: none; }
+    *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+@media print {
+    .navbar, .ds-footer, .btn { display: none !important; }
+    body { background: #fff; }
+}

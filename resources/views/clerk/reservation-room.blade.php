@@ -35,7 +35,7 @@
             <select name="room_type_id" id="room_type_id" class="form-control" required>
                 <option value="">Select Room Type</option>
                 @foreach($roomTypes as $type)
-                    <option value="{{ $type->id }}" data-max-occupants="{{ $type->max_occupants }}">{{ $type->name }} (${{ number_format($type->price_per_night, 2) }}/night)</option>
+                    <option value="{{ $type->id }}" data-max-occupants="{{ $type->max_occupants }}">{{ $type->name }} (@money($type->price_per_night)/night)</option>
                 @endforeach
             </select>
             @error('room_type_id') <span class="text-danger">{{ $message }}</span> @enderror
@@ -59,6 +59,10 @@
         <div class="mb-3">
             <label for="credit_card_details" class="form-label">Credit Card Details (Optional)</label>
             <input type="text" name="credit_card_details" id="credit_card_details" class="form-control" maxlength="19" placeholder="e.g., 1234-5678-9012-3456">
+            <label for="card_expiry" class="form-label mt-2">Card Expiry (MM/YY)</label>
+            <input type="text" name="card_expiry" id="card_expiry" class="form-control" maxlength="5" placeholder="MM/YY" value="{{ old('card_expiry') }}">
+            <div class="form-text">Only the last four digits and the expiry date are stored.</div>
+            @error('card_expiry') <span class="text-danger">{{ $message }}</span> @enderror
             <div id="credit-card-error" class="text-danger d-none"></div>
             @error('credit_card_details') <span class="text-danger">{{ $message }}</span> @enderror
         </div>

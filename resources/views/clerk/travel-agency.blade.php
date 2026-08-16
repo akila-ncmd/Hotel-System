@@ -42,7 +42,7 @@
                     @foreach($rooms as $roomType)
                         <div class="form-check mb-3">
                             <input type="checkbox" class="form-check-input room-type-check" name="room_types[{{ $roomType->id }}][selected]" id="roomType_{{ $roomType->id }}" value="1" data-rate="{{ $roomType->is_suite ? $roomType->weekly_rate : $roomType->price_per_night }}" data-is-suite="{{ $roomType->is_suite ? 1 : 0 }}" data-max-occupants="{{ $roomType->max_occupants }}" data-max-quantity="{{ $roomType->is_suite ? 3 : 100 }}">
-                            <label class="form-check-label" for="roomType_{{ $roomType->id }}">{{ $roomType->name }} ({{ $roomType->is_suite ? 'Weekly: $' . number_format($roomType->weekly_rate, 2) : '$' . number_format($roomType->price_per_night, 2) . '/night' }})</label>
+                            <label class="form-check-label" for="roomType_{{ $roomType->id }}">{{ $roomType->name }} ({{ $roomType->is_suite ? 'Weekly: ' . \App\Support\Money::format($roomType->weekly_rate) : \App\Support\Money::format($roomType->price_per_night) . '/night' }})</label>
                             <div class="mt-1">
                                 <label class="form-label">Quantity</label>
                                 <input type="number" name="room_types[{{ $roomType->id }}][quantity]" class="form-control room-quantity" min="0" placeholder="Number of rooms" disabled>

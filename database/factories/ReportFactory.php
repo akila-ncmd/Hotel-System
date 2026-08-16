@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Branch;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,14 +12,16 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class ReportFactory extends Factory
 {
     /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
+     * A saved nightly snapshot for one branch on one date.
      */
     public function definition(): array
     {
         return [
-            //
+            'branch_id' => Branch::factory(),
+            'report_date' => Carbon::yesterday()->toDateString(),
+            'total_occupancy' => fake()->numberBetween(0, 50),
+            'total_revenue' => fake()->randomFloat(2, 0, 5000),
+            'no_show_count' => fake()->numberBetween(0, 3),
         ];
     }
 }

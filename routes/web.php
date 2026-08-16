@@ -54,6 +54,10 @@ Route::middleware(['auth', 'role:customer'])->group(function () {
 // Clerk Routes
 Route::middleware(['auth', 'role:clerk'])->prefix('clerk')->group(function () {
     Route::get('/dashboard', [ClerkController::class, 'dashboard'])->name('clerk.dashboard');
+    Route::get('/front-desk', [ClerkController::class, 'frontDesk'])->name('clerk.front-desk');
+    Route::get('/walk-in', [ClerkController::class, 'walkInForm'])->name('clerk.walk-in');
+    Route::post('/walk-in', [ClerkController::class, 'storeWalkIn'])->name('clerk.walk-in.store');
+    Route::get('/room-types/{roomType}/available-rooms', [ClerkController::class, 'availableRoomsForType'])->name('clerk.available-rooms');
     Route::get('/room-reservation', [ClerkController::class, 'showRoomReservationForm'])->name('clerk.room-reservation');
     Route::get('/residential-suite-reservation', [ClerkController::class, 'showSuiteReservationForm'])->name('clerk.residential-suite-reservation');
     Route::post('/reservations', [ClerkController::class, 'storeReservation'])->name('clerk.reservation.store');

@@ -42,7 +42,7 @@
                         <td>{{ $reservation->check_in_date->format('Y-m-d') }}</td>
                         <td>{{ $reservation->check_out_date->format('Y-m-d') }}</td>
                         <td>{{ ucfirst($reservation->status) }}</td>
-                        <td>{{ number_format($reservation->total_amount ?? 0, 2) }}</td>
+                        <td>@money($reservation->total_amount ?? 0)</td>
                     </tr>
                 @endforeach
             </tbody>

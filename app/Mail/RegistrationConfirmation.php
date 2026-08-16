@@ -20,7 +20,7 @@ class RegistrationConfirmation extends Mailable
 
     public function build()
     {
-        return $this->subject('Welcome to Grand Horizon - Registration Confirmation')
+        return $this->subject('Welcome to ' . config('app.name') . ' - Registration Confirmation')
                     ->view('emails.registration_confirmation')
                     ->with(['user' => $this->user]);
     }

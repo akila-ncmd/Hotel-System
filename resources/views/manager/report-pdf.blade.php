@@ -15,7 +15,7 @@
     <h1>Daily Report</h1>
     <div class="summary">
         <p><strong>Date:</strong> {{ $date }}</p>
-        <p><strong>Total Revenue:</strong> ${{ number_format($total_revenue, 2) }}</p>
+        <p><strong>Total Revenue:</strong> @money($total_revenue)</p>
         <p><strong>Occupancy Rate:</strong> {{ number_format($occupancy_rate, 2) }}%</p>
     </div>
 
@@ -59,7 +59,7 @@
             @foreach($billings as $billing)
                 <tr>
                     <td>{{ $billing->reservation_id }}</td>
-                    <td>${{ number_format($billing->total_amount, 2) }}</td>
+                    <td>@money($billing->total_amount)</td>
                     <td>{{ ucfirst($billing->payment_status) }}</td>
                     <td>{{ ucfirst($billing->payment_method) }}</td>
                 </tr>

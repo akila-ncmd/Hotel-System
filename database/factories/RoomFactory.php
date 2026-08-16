@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Models\Branch;
+use App\Models\RoomType;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -10,14 +12,24 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class RoomFactory extends Factory
 {
     /**
-     * Define the model's default state.
+     * A bookable physical room.
      *
-     * @return array<string, mixed>
+     * `status` is a right-now flag only — it says nothing about future dates.
+     * Date-aware availability comes from App\Services\RoomAvailability.
      */
     public function definition(): array
     {
         return [
-            //
+            'branch_id' => Branch::factory(),
+            'room_type_id' => RoomType::factory(),
+            'room_number' => (string) fake()->unique()->numberBetween(100, 9999),
+            'status' => 'available',
         ];
+    }
+
+    /** Out of service — excluded from bookable capacity. */
+    public function maintenance(): static
+    {
+        return $this->state(fn () => ['status' => 'maintenance']);
     }
 }

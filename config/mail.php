@@ -61,7 +61,7 @@ return [
 
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'akilanilupul3@gmail.com'),
-        'name' => env('MAIL_FROM_NAME', 'Hotel Reservation System'),
+        'name' => env('MAIL_FROM_NAME', 'Diamond Shine'),
     ],
 
     'markdown' => [

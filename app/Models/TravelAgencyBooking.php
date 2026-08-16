@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class TravelAgencyBooking extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['travel_agency_id', 'reservation_id', 'discount_percentage', 'quotation_amount'];
 
     public function travelAgency()

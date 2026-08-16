@@ -1,17 +1,26 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-5">
-    <h2>Edit Reservation</h2>
+<div class="ds-page-head ds-reveal">
+    <span class="ds-eyebrow">Reservation {{ $reservation->id }}</span>
+    <h1>Change your stay</h1>
+    <p class="ds-lead mt-3 mb-0">
+        Amend the details below. Availability is re-checked when you save, so a
+        change is only accepted if we can still honour it.
+    </p>
+</div>
+
+<div class="ds-edit-wrap">
     @if ($errors->any())
-        <div class="alert alert-danger">
-            <ul>
+        <div class="alert alert-danger ds-reveal">
+            <ul class="mb-0 ps-3">
                 @foreach ($errors->all() as $error)
                     <li>{{ $error }}</li>
                 @endforeach
             </ul>
         </div>
     @endif
+    <div class="ds-panel ds-reveal">
     <form method="POST" action="{{ route('reservations.update', $reservation->id) }}" id="reservationForm">
         @csrf
         @method('PUT')
@@ -34,9 +43,9 @@
                     <option value="{{ $type->id }}" data-max-occupants="{{ $type->max_occupants }}" data-is-suite="{{ $type->is_suite ? 1 : 0 }}" {{ $reservation->room_type_id == $type->id ? 'selected' : '' }}>
                         {{ $type->name }}
                         @if($type->is_suite)
-                            (Weekly: ${{ number_format($type->weekly_rate, 2) }}, Monthly: ${{ number_format($type->monthly_rate, 2) }})
+                            (Weekly: @money($type->weekly_rate), Monthly: @money($type->monthly_rate))
                         @else
-                            (${{ number_format($type->price_per_night, 2) }}/night)
+                            (@money($type->price_per_night)/night)
                         @endif
                     </option>
                 @endforeach
@@ -76,15 +85,24 @@
         <div class="mb-3">
             <label for="credit_card_details" class="form-label">Credit Card Details (Optional)</label>
             <input type="text" name="credit_card_details" id="credit_card_details" class="form-control" maxlength="19" value="{{ $reservation->credit_card_details }}" placeholder="e.g., 1234-5678-9012-3456">
+            <label for="card_expiry" class="form-label mt-2">Card Expiry (MM/YY)</label>
+            <input type="text" name="card_expiry" id="card_expiry" class="form-control" maxlength="5" placeholder="MM/YY" value="{{ old('card_expiry') }}">
+            <div class="form-text">Only the last four digits and the expiry date are stored.</div>
+            @error('card_expiry') <span class="text-danger">{{ $message }}</span> @enderror
             <div id="credit-card-error" class="text-danger d-none"></div>
             @error('credit_card_details') <span class="text-danger">{{ $message }}</span> @enderror
         </div>
-        <div class="mb-3">
-            <button type="submit" class="btn btn-primary">Update Reservation</button>
-            <a href="{{ route('customer.reservations') }}" class="btn btn-secondary">Cancel</a>
+        <div class="d-flex flex-wrap gap-2 mt-5 pt-4" style="border-top: 1px solid var(--ds-shell);">
+            <button type="submit" class="btn btn-primary">Save changes</button>
+            <a href="{{ route('customer.reservations') }}" class="btn btn-link">Cancel</a>
         </div>
     </form>
+    </div>
 </div>
+
+<style>
+    .ds-edit-wrap { max-width: 44rem; }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

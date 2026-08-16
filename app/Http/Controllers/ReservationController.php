@@ -7,6 +7,7 @@ use App\Models\RoomType;
 use App\Models\Branch;
 use App\Mail\ReservationConfirmation;
 use App\Services\RoomAvailability;
+use App\Support\CardGuarantee;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Http\Request;
@@ -38,7 +39,7 @@ class ReservationController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'room_type_id' => 'required|exists:room_types,id',
             'number_of_occupants' => 'required|integer|min:1',
-            'credit_card_details' => 'nullable|string',
+            ...CardGuarantee::rules(),
         ];
 
         if ($isSuite) {
@@ -55,6 +56,10 @@ class ReservationController extends Controller
         }
 
         $data = $request->validate($rules);
+
+        // Never persist the full card number — reduce it to a masked guarantee.
+        $data[CardGuarantee::NUMBER_FIELD] = CardGuarantee::fromRequest($request);
+        unset($data[CardGuarantee::EXPIRY_FIELD]);
 
         // Validate branch_id for Admins
         if (Auth::user()->role === 'admin') {
@@ -138,7 +143,7 @@ class ReservationController extends Controller
             'branch_id' => 'required|exists:branches,id',
             'room_type_id' => 'required|exists:room_types,id',
             'number_of_occupants' => 'required|integer|min:1',
-            'credit_card_details' => 'nullable|string',
+            ...CardGuarantee::rules(),
         ];
 
         if ($isSuite) {
@@ -155,6 +160,10 @@ class ReservationController extends Controller
         }
 
         $data = $request->validate($rules);
+
+        // Never persist the full card number — reduce it to a masked guarantee.
+        $data[CardGuarantee::NUMBER_FIELD] = CardGuarantee::fromRequest($request);
+        unset($data[CardGuarantee::EXPIRY_FIELD]);
 
         // Validate branch_id for Admins
         if (Auth::user()->role === 'admin') {

@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class RoomType extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['name', 'description', 'price_per_night', 'weekly_rate', 'monthly_rate', 'max_occupants', 'is_suite'];
 
     protected $casts = [

@@ -38,7 +38,7 @@
                             <td>{{ $reservation->check_in_date }}</td>
                             <td>{{ $reservation->check_out_date }}</td>
                             <td>{{ ucfirst($reservation->status) }}</td>
-                            <td>{{ number_format($reservation->total_amount ?? 0, 2) }}</td>
+                            <td>@money($reservation->total_amount ?? 0)</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -60,7 +60,7 @@
                     @foreach($reports as $report)
                         <tr>
                             <td>{{ $report->date }}</td>
-                            <td>{{ number_format($report->total_revenue ?? 0, 2) }}</td>
+                            <td>@money($report->total_revenue ?? 0)</td>
                         </tr>
                     @endforeach
                 </tbody>

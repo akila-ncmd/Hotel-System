@@ -9,15 +9,12 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class BranchFactory extends Factory
 {
-    /**
-     * Define the model's default state.
-     *
-     * @return array<string, mixed>
-     */
     public function definition(): array
     {
         return [
-            //
+            'name' => fake()->unique()->city() . ' Branch',
+            'address' => fake()->address(),
+            'contact_number' => fake()->numerify('0##########'),
         ];
     }
 }

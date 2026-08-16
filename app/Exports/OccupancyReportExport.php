@@ -2,6 +2,7 @@
 
 namespace App\Exports;
 
+use App\Support\Money;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\ShouldAutoSize;
@@ -24,7 +25,7 @@ class OccupancyReportExport implements FromCollection, WithHeadings, ShouldAutoS
                 'Check-In Date' => $reservation->check_in_date->format('Y-m-d'),
                 'Check-Out Date' => $reservation->check_out_date->format('Y-m-d'),
                 'Status' => ucfirst($reservation->status),
-                'Total Price ($)' => number_format($reservation->total_amount ?? 0, 2),
+                'Total Price (' . Money::code() . ')' => Money::plain($reservation->total_amount),
             ];
         });
     }
@@ -37,7 +38,7 @@ class OccupancyReportExport implements FromCollection, WithHeadings, ShouldAutoS
             'Check-In Date',
             'Check-Out Date',
             'Status',
-            'Total Price ($)',
+            'Total Price (' . Money::code() . ')',
         ];
     }
 }

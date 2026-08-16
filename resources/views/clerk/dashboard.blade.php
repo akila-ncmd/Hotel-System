@@ -13,6 +13,16 @@
 
     <div class="row mb-4">
         <div class="col-md-4 mb-3">
+            <a href="{{ route('clerk.front-desk') }}" class="btn btn-dark btn-lg w-100">
+                <i class="bi bi-clipboard-check me-1"></i>Front Desk &mdash; Today
+            </a>
+        </div>
+        <div class="col-md-4 mb-3">
+            <a href="{{ route('clerk.walk-in') }}" class="btn btn-outline-dark btn-lg w-100">
+                <i class="bi bi-person-plus me-1"></i>Walk-in
+            </a>
+        </div>
+        <div class="col-md-4 mb-3">
             <a href="{{ route('clerk.room-reservation') }}" class="btn btn-primary btn-lg w-100">Room Reservation</a>
         </div>
         <div class="col-md-4 mb-3">

@@ -1,10 +1,17 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="container mt-5">
-    <h2>Edit Profile</h2>
+<div class="ds-page-head ds-reveal">
+    <span class="ds-eyebrow">Your account</span>
+    <h1>Profile</h1>
+    <p class="ds-lead mt-3 mb-0">
+        Keep your contact details current &mdash; we use them to confirm every booking.
+    </p>
+</div>
+
+<div class="ds-edit-wrap">
     @if (session('success'))
-        <div class="alert alert-success">
+        <div class="alert alert-success ds-reveal">
             {{ session('success') }}
         </div>
     @endif
@@ -17,6 +24,7 @@
             </ul>
         </div>
     @endif
+    <div class="ds-panel ds-reveal">
     <form method="POST" action="{{ route('customer.update-profile') }}" id="editProfileForm">
         @csrf
         @method('PUT')
@@ -66,12 +74,17 @@
             <input type="password" name="password_confirmation" id="password_confirmation" class="form-control">
             <div id="password-confirmation-error" class="text-danger d-none"></div>
         </div>
-        <div class="mb-3">
-            <button type="submit" class="btn btn-primary">Update Profile</button>
-            <a href="{{ route('dashboard') }}" class="btn btn-secondary">Cancel</a>
+        <div class="d-flex flex-wrap gap-2 mt-5 pt-4" style="border-top: 1px solid var(--ds-shell);">
+            <button type="submit" class="btn btn-primary">Save profile</button>
+            <a href="{{ route('dashboard') }}" class="btn btn-link">Cancel</a>
         </div>
     </form>
+    </div>
 </div>
+
+<style>
+    .ds-edit-wrap { max-width: 44rem; }
+</style>
 
 <script>
 document.addEventListener('DOMContentLoaded', () => {

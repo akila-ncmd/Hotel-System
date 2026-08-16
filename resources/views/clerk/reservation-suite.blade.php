@@ -35,7 +35,7 @@
             <select name="room_type_id" id="room_type_id" class="form-control" required>
                 <option value="">Select Suite</option>
                 @foreach($roomTypes as $type)
-                    <option value="{{ $type->id }}" data-max-occupants="{{ $type->max_occupants }}">{{ $type->name }} (Weekly: ${{ number_format($type->weekly_rate, 2) }}, Monthly: ${{ number_format($type->monthly_rate, 2) }})</option>
+                    <option value="{{ $type->id }}" data-max-occupants="{{ $type->max_occupants }}">{{ $type->name }} (Weekly: @money($type->weekly_rate), Monthly: @money($type->monthly_rate))</option>
                 @endforeach
             </select>
             @error('room_type_id') <span class="text-danger">{{ $message }}</span> @enderror
@@ -68,6 +68,10 @@
         <div class="mb-3">
             <label for="credit_card_details" class="form-label">Credit Card Details (Optional)</label>
             <input type="text" name="credit_card_details" id="credit_card_details" class="form-control" maxlength="19" placeholder="e.g., 1234-5678-9012-3456">
+            <label for="card_expiry" class="form-label mt-2">Card Expiry (MM/YY)</label>
+            <input type="text" name="card_expiry" id="card_expiry" class="form-control" maxlength="5" placeholder="MM/YY" value="{{ old('card_expiry') }}">
+            <div class="form-text">Only the last four digits and the expiry date are stored.</div>
+            @error('card_expiry') <span class="text-danger">{{ $message }}</span> @enderror
             <div id="credit-card-error" class="text-danger d-none"></div>
             @error('credit_card_details') <span class="text-danger">{{ $message }}</span> @enderror
         </div>

@@ -24,7 +24,7 @@
         </div>
         <div class="mb-3">
             <label class="form-label">Base Room Cost</label>
-            <input type="text" class="form-control" value="${{ number_format($baseCost, 0) }}" disabled>
+            <input type="text" class="form-control" value="@money($baseCost)" disabled>
         </div>
         <div class="mb-3">
             <label for="payment_method" class="form-label">Payment Method</label>
@@ -66,7 +66,7 @@
         </div>
         <div class="mb-3">
             <label for="total-amount" class="form-label">Total Amount ($)</label>
-            <input type="text" id="total-amount" class="form-control" value="${{ number_format($baseCost, 0) }}" disabled>
+            <input type="text" id="total-amount" class="form-control" value="@money($baseCost)" disabled>
         </div>
         <div class="mb-3">
             <button type="submit" class="btn btn-primary">Complete Check-out</button>
@@ -80,6 +80,7 @@
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const baseCost = {{ $baseCost }};
+    const currencySymbol = @json(\App\Support\Money::symbol());
     const chargeInputs = document.querySelectorAll('.charge-input');
     const totalAmountInput = document.getElementById('total-amount');
     const chargeErrors = {
@@ -109,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         // Check for maximum value
         if (value && numericValue > 10000) {
-            errorElement.textContent = 'Charge cannot exceed $10,000.';
+            errorElement.textContent = `Charge cannot exceed ${currencySymbol}10,000.`;
             errorElement.style.display = 'block';
             input.value = 10000;
             return false;
@@ -130,8 +131,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const value = parseFloat(input.value) || 0;
             additionalCharges += value;
         });
-        const total = Math.floor(baseCost + additionalCharges); // Remove decimal places
-        totalAmountInput.value = `$${total}`;
+        const total = baseCost + additionalCharges;
+        totalAmountInput.value = currencySymbol + total.toLocaleString('en-US', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+        });
     }
 
     // Validate and update total on input

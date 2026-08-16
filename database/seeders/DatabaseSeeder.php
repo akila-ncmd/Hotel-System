@@ -8,6 +8,9 @@ use App\Models\User;
 use App\Models\RoomType;
 use App\Models\Room;
 use App\Models\TravelAgency;
+use App\Models\Reservation;
+use App\Models\Billing;
+use Carbon\Carbon;
 
 class DatabaseSeeder extends Seeder
 {
@@ -143,5 +146,93 @@ class DatabaseSeeder extends Seeder
                 'is_verified' => true,
             ]
         );
+
+        $this->seedFrontDeskDay();
+    }
+
+    /**
+     * Give the clerk's front desk something to show on the day it is run:
+     * two arrivals due today, one departure due today, and one in-house guest
+     * staying on. Without this, a freshly seeded database renders three empty
+     * tabs and the screen looks broken rather than quiet.
+     */
+    private function seedFrontDeskDay(): void
+    {
+        $branch = Branch::where('name', 'Colombo Branch')->first();
+        $customer = User::where('email', 'customer@hotel.com')->first();
+        $roomType = RoomType::where('name', 'Single Room')->first();
+
+        if (! $branch || ! $customer || ! $roomType) {
+            return;
+        }
+
+        $today = Carbon::today();
+
+        // Two arrivals due today — one guaranteed by a card, one not. The
+        // unguaranteed one is what the 19:00 auto-cancel will pick up.
+        foreach ([
+            ['**** **** **** 4242 (exp 04/29)', 3],
+            [null, 2],
+        ] as $index => [$guarantee, $nights]) {
+            Reservation::firstOrCreate(
+                [
+                    'user_id' => $customer->id,
+                    'branch_id' => $branch->id,
+                    'check_in_date' => $today,
+                    'room_type_id' => $roomType->id,
+                    'number_of_occupants' => $index + 1,
+                ],
+                [
+                    'check_out_date' => $today->copy()->addDays($nights),
+                    'status' => 'pending',
+                    'credit_card_details' => $guarantee,
+                ]
+            );
+        }
+
+        // One in-house guest departing today, and one staying on. Both need a
+        // physical room, since a checked-in reservation always has one.
+        $rooms = Room::where('branch_id', $branch->id)
+            ->where('room_type_id', $roomType->id)
+            ->orderBy('room_number')
+            ->take(2)
+            ->get();
+
+        foreach ([
+            [0, $today->copy(), 'departing today'],
+            [1, $today->copy()->addDays(2), 'staying on'],
+        ] as [$offset, $checkOut, $_label]) {
+            if (! isset($rooms[$offset])) {
+                continue;
+            }
+
+            $reservation = Reservation::firstOrCreate(
+                [
+                    'user_id' => $customer->id,
+                    'branch_id' => $branch->id,
+                    'room_id' => $rooms[$offset]->id,
+                    'status' => 'checked_in',
+                ],
+                [
+                    'room_type_id' => $roomType->id,
+                    'check_in_date' => $today->copy()->subDays(2),
+                    'check_out_date' => $checkOut,
+                    'number_of_occupants' => 1,
+                    'credit_card_details' => '**** **** **** 4242 (exp 04/29)',
+                ]
+            );
+
+            $rooms[$offset]->update(['status' => 'occupied']);
+
+            Billing::firstOrCreate(
+                ['reservation_id' => $reservation->id],
+                [
+                    'user_id' => $customer->id,
+                    'branch_id' => $branch->id,
+                    'total_amount' => $roomType->price_per_night * 2,
+                    'payment_status' => 'pending',
+                ]
+            );
+        }
     }
 }

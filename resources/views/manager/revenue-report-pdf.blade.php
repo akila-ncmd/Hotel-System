@@ -32,7 +32,7 @@
                 @foreach($reports as $report)
                     <tr>
                         <td>{{ $report->date }}</td>
-                        <td>{{ number_format($report->total_revenue ?? 0, 2) }}</td>
+                        <td>@money($report->total_revenue ?? 0)</td>
                     </tr>
                 @endforeach
             </tbody>

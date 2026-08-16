@@ -30,15 +30,15 @@
         </tr>
         <tr>
             <td>Check-Out Revenue</td>
-            <td>${{ $check_out_revenue }}</td>
+            <td>@money($check_out_revenue)</td>
         </tr>
         <tr>
             <td>No-Show Revenue</td>
-            <td>${{ $no_show_revenue }}</td>
+            <td>@money($no_show_revenue)</td>
         </tr>
         <tr>
             <td>Total Revenue</td>
-            <td>${{ $total_revenue }}</td>
+            <td>@money($total_revenue)</td>
         </tr>
         <tr>
             <td>No-Shows</td>

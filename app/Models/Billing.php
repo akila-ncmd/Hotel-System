@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Billing extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'reservation_id', 'user_id', 'branch_id', 'total_amount', 'payment_method',
         'payment_status', 'restaurant_charges', 'room_service_charges', 'laundry_charges',

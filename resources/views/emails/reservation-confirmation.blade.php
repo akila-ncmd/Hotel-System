@@ -13,10 +13,10 @@
         <li><strong>Check-in Date:</strong> {{ $reservation->check_in_date->format('Y-m-d') }}</li>
         <li><strong>Duration:</strong> {{ $durationText }}</li>
         <li><strong>Number of Occupants:</strong> {{ $reservation->number_of_occupants }}</li>
-        <li><strong>Total Cost:</strong> ${{ number_format($totalCost, 2) }}</li>
+        <li><strong>Total Cost:</strong> @money($totalCost)</li>
         <li><strong>Status:</strong> {{ ucfirst($reservation->status) }}</li>
     </ul>
     <p>We look forward to welcoming you!</p>
-    <p>Best regards,<br>Hotel Reservation System</p>
+    <p>Best regards,<br>{{ config('app.name') }}</p>
 </body>
 </html>

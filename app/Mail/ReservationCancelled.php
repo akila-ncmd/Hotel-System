@@ -24,7 +24,7 @@ class ReservationCancelled extends Mailable
                     ->view('emails.reservation_cancelled')
                     ->with([
                         'reservation' => $this->reservation,
-                        'hotelName' => config('app.name', 'Hotel Reservation System')
+                        'hotelName' => config('app.name', 'Diamond Shine')
                     ]);
     }
 }

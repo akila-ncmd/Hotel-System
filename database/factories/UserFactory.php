@@ -2,9 +2,9 @@
 
 namespace Database\Factories;
 
+use App\Models\Branch;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\User>
@@ -12,33 +12,53 @@ use Illuminate\Support\Str;
 class UserFactory extends Factory
 {
     /**
-     * The current password being used by the factory.
+     * Hashed once per run — bcrypt is slow and every test seeds users.
      */
-    protected static ?string $password;
+    protected static ?string $password = null;
 
     /**
-     * Define the model's default state.
+     * A customer with no branch.
      *
-     * @return array<string, mixed>
+     * Note this table has no email_verified_at or remember_token column; auth
+     * here is hand-rolled on the Auth facade rather than laravel/ui scaffolding.
      */
     public function definition(): array
     {
         return [
             'name' => fake()->name(),
             'email' => fake()->unique()->safeEmail(),
-            'email_verified_at' => now(),
             'password' => static::$password ??= Hash::make('password'),
-            'remember_token' => Str::random(10),
+            'role' => 'customer',
+            'branch_id' => null,
+            'nationality' => fake()->country(),
+            'contact_number' => fake()->numerify('07########'),
         ];
     }
 
-    /**
-     * Indicate that the model's email address should be unverified.
-     */
-    public function unverified(): static
+    /** Front-desk clerk, pinned to a branch. */
+    public function clerk(?Branch $branch = null): static
     {
-        return $this->state(fn (array $attributes) => [
-            'email_verified_at' => null,
+        return $this->state(fn () => [
+            'role' => 'clerk',
+            'branch_id' => $branch?->id ?? Branch::factory(),
+        ]);
+    }
+
+    /** Branch manager, pinned to a branch. */
+    public function manager(?Branch $branch = null): static
+    {
+        return $this->state(fn () => [
+            'role' => 'manager',
+            'branch_id' => $branch?->id ?? Branch::factory(),
+        ]);
+    }
+
+    /** Admin — bypasses every role check by design (see RoleMiddleware). */
+    public function admin(): static
+    {
+        return $this->state(fn () => [
+            'role' => 'admin',
+            'branch_id' => null,
         ]);
     }
 }

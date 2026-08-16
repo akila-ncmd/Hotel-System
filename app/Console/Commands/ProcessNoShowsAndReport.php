@@ -110,9 +110,11 @@ class ProcessNoShowsAndReport extends Command
                     'occupied_rooms' => $occupiedRooms,
                     'total_rooms' => $totalRooms,
                     'occupancy_rate' => number_format($occupancyRate, 2),
-                    'check_out_revenue' => number_format($checkOutRevenue, 2),
-                    'no_show_revenue' => number_format($noShowRevenue, 2),
-                    'total_revenue' => number_format($totalRevenue, 2),
+                    // Money stays as raw floats — the views format it through
+                    // App\Support\Money so the currency is applied in one place.
+                    'check_out_revenue' => $checkOutRevenue,
+                    'no_show_revenue' => $noShowRevenue,
+                    'total_revenue' => $totalRevenue,
                     'no_shows' => $branchNoShows,
                     'pdfPath' => 'reports/daily_report_' . $branch->id . '_' . $yesterday . '.pdf',
                 ];

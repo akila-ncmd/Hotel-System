@@ -31,7 +31,7 @@
             <tr>
                 <td>{{ $report->report_date->format('Y-m-d') }}</td>
                 <td>{{ $report->total_occupancy }}</td>
-                <td>{{ number_format($report->total_revenue, 2) }}</td>
+                <td>@money($report->total_revenue)</td>
                 <td>{{ $report->no_show_count }}</td>
             </tr>
         </tbody>
