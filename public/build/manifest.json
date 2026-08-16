@@ -1,0 +1,38 @@
+{
+  "_three.module-DJqaDhL5.js": {
+    "file": "assets/three.module-DJqaDhL5.js",
+    "name": "three.module"
+  },
+  "resources/css/app.css": {
+    "file": "assets/app-DBrmXldG.css",
+    "src": "resources/css/app.css",
+    "isEntry": true
+  },
+  "resources/js/app.js": {
+    "file": "assets/app-UKi2aKeJ.js",
+    "name": "app",
+    "src": "resources/js/app.js",
+    "isEntry": true,
+    "css": [
+      "assets/app-iZYYAlp_.css"
+    ]
+  },
+  "resources/js/gallery.js": {
+    "file": "assets/gallery-BkPtJ4zP.js",
+    "name": "gallery",
+    "src": "resources/js/gallery.js",
+    "isEntry": true,
+    "imports": [
+      "_three.module-DJqaDhL5.js"
+    ]
+  },
+  "resources/js/hero.js": {
+    "file": "assets/hero-B-QIHVsk.js",
+    "name": "hero",
+    "src": "resources/js/hero.js",
+    "isEntry": true,
+    "imports": [
+      "_three.module-DJqaDhL5.js"
+    ]
+  }
+}

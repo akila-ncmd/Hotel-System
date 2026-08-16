@@ -1,6 +1,9 @@
 /.phpunit.cache
 /node_modules
-/public/build
+# /public/build is deliberately committed: home.blade.php loads the WebGL hero
+# and gallery from it, and without the bundle a fresh clone silently falls back
+# to CSS. Run `npm run build` after touching resources/js so the committed
+# assets stay in step with the source.
 /public/hot
 /public/storage
 /storage/*.key
