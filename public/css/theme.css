@@ -89,6 +89,31 @@
     --ds-shadow:    0 1px 2px rgba(43, 39, 35, .04), 0 8px 24px rgba(43, 39, 35, .06);
     --ds-shadow-lg: 0 2px 4px rgba(43, 39, 35, .05), 0 24px 60px rgba(43, 39, 35, .10);
 
+    /* Frosted glass -------------------------------------------------------
+       The iOS material is not just a blur. It is four things together, and
+       leaving any of them out is what makes web "glassmorphism" look like a
+       translucent rectangle instead of a pane:
+         1. a heavy blur, so background detail becomes tone rather than shape
+         2. a large saturation boost, because blurring greys colour out and the
+            boost is what puts the life back
+         3. a thin tint, light enough that the backdrop still reads through
+         4. a lit top edge and a hairline border, which are what give the pane
+            a physical thickness
+       Every glass surface on the site is built from these, so one change here
+       moves all of them together. */
+    --ds-glass-blur:   30px;
+    --ds-glass-sat:    180%;
+    --ds-glass-tint:   rgba(250, 247, 242, .52);   /* chrome over imagery */
+    --ds-glass-solid:  rgba(250, 247, 242, .80);   /* content, needs contrast */
+    --ds-glass-edge:   rgba(255, 255, 255, .55);
+    /* The lit rim, then the contact shadow, then the cast shadow. Three layers
+       is what reads as thickness rather than as a drop shadow. */
+    --ds-glass-lift:
+        inset 0 1px 0 rgba(255, 255, 255, .70),
+        inset 0 -1px 0 rgba(26, 23, 21, .06),
+        0 2px 6px rgba(26, 23, 21, .07),
+        0 18px 48px rgba(26, 23, 21, .16);
+
     --ds-ease: cubic-bezier(.22, .61, .36, 1);
     --ds-slow: 700ms;
     --ds-med:  380ms;
@@ -268,45 +293,58 @@ a:hover { color: var(--ds-wine-deep); }
 
 /* 4. Navigation ------------------------------------------------------------ */
 
-/* The header is two stacked bars: a thin utility strip carrying the hotline and
-   the social accounts, and the main bar with the brand, the sections and the
-   booking CTA. A hotel site's phone number has to be reachable without
-   scrolling — that is what the strip buys, and it is the first thing given up
-   when space or scroll position gets tight. */
+/* A launcher bar and a full-screen menu.
+   The bar is deliberately almost empty: brand, a hotline, the social accounts,
+   Book now, and Menu. The four sections live inside the menu instead, which is
+   what keeps the bar to a single soft-cornered strip floating over the hero
+   rather than a structure sitting on top of the photograph.
 
-/* The nav points at #rooms, #gallery and friends, and the bar is sticky — so
-   every anchor target has to reserve the bar's height or the heading you jumped
-   to lands underneath it. scroll-padding on the scroll container does this once
-   for every anchor on the site, rather than per-target scroll-margin. */
+   One consequence worth knowing: because the menu is the navigation at every
+   width, there is no separate mobile panel, no offcanvas and no dropdown. The
+   phone and the desktop get the same thing. */
+
+/* Anchor targets have to clear the floating bar, or the heading you jumped to
+   lands underneath it. scroll-padding does this once for every anchor on the
+   site rather than a scroll-margin per target. */
 html {
     scroll-behavior: smooth;
     scroll-padding-top: 6.5rem;
 }
 
+/* Glass thickness, 0 → 1, driving the bar's opacity from one number. On a hero
+   page JS ramps it against scroll position; anywhere else CSS leaves it at 1. */
 .ds-header {
-    position: sticky;
-    top: 0;
+    --glass: 1;
+
+    position: fixed;
+    top: 0; left: 0; right: 0;
     z-index: 1030;
-    /* Both bars slide as one unit when the header retracts. */
+    background: transparent;   /* only a positioning frame */
     transform: translateY(0);
     transition: transform var(--ds-med) var(--ds-ease);
     will-change: transform;
+    pointer-events: none;      /* the hero stays clickable either side of the bar */
+    /* The bar's tilt is a real 3D rotation, which needs a perspective on an
+       ancestor — without this the rotateX/rotateY below are flat and do
+       nothing at all. */
+    perspective: 900px;
 }
+.ds-header > * { pointer-events: auto; }
 
-/* Retracted: the header lifts out of the way on a downward scroll and comes
-   straight back on any upward scroll, so long pages read without a bar sitting
-   over them but booking is never more than a flick away.
-   -100% on a transform resolves against the element's own border box, so this
-   is always exactly the header's height — including after the utility strip
-   folds, which changes that height. No measuring, and nothing to go stale. */
-.ds-header.is-hidden { transform: translateY(-100%); }
+.ds-header.is-hidden { transform: translateY(-140%); }
+
+/* Over a hero the bar starts thinner so more of the photograph reads through
+   it. Declared here as well as in JS so the first paint and the no-JS case both
+   get the thin state rather than flashing the thick one. */
+.ds-header--over { --glass: 0; }
+
+/* Only pages without a hero reserve space for the floating bar. */
+.ds-main--offset { padding-top: 7rem; }
 
 /* --- skip link -------------------------------------------------------- */
 
-/* Visible only to a keyboard, and only when focused. Without it every tab
-   through the site starts by walking the whole nav again. */
 .ds-skip {
-    position: absolute;
+    position: fixed;
     left: 1rem;
     top: 0;
     z-index: 1080;
@@ -323,335 +361,524 @@ html {
 }
 .ds-skip:focus { transform: translateY(0); color: var(--ds-ivory); }
 
-/* --- utility strip ---------------------------------------------------- */
+/* --- the bar ---------------------------------------------------------- */
 
-.ds-utility {
-    background: var(--ds-charcoal);
-    color: rgba(250, 247, 242, .72);
-    font-size: .7rem;
-    letter-spacing: var(--ds-track-ui);
-    text-transform: uppercase;
-    /* Collapsed by animating the grid row rather than height, so the strip does
-       not need a magic pixel value and can hold whatever it holds. */
-    display: grid;
-    grid-template-rows: 1fr;
-    transition: grid-template-rows var(--ds-med) var(--ds-ease),
-                opacity var(--ds-med) var(--ds-ease);
-}
-.ds-utility > * { overflow: hidden; min-height: 0; }
-
-/* Once the page has scrolled the strip folds away: the hotline has had its
-   moment, and the main bar is what matters from then on. */
-.ds-header.is-stuck .ds-utility { grid-template-rows: 0fr; opacity: 0; }
-
-.ds-utility__inner {
+/* Ivory rather than ink. Charcoal on ivory is legible whatever the photograph
+   underneath happens to be doing, which dark-plate designs are not — a bright
+   patch of sky behind a dark bar, or vice versa, is a real failure mode here. */
+.ds-bar {
     display: flex;
     align-items: center;
     gap: 1.25rem;
-    padding-block: .6rem;
-}
-.ds-utility a { color: inherit; text-decoration: none; }
-.ds-utility a:hover { color: var(--ds-ivory); }
+    width: min(72rem, calc(100% - 2 * var(--ds-gutter)));
+    margin: clamp(.7rem, 1.4vw, 1.1rem) auto 0;
+    position: relative;
+    padding: .55rem .55rem .55rem 1.4rem;
+    /* Real glass: thin enough to see the photograph through, so the blur has
+       something to do. Every frosted property is derived from --glass, which JS
+       ramps against scroll position, so the bar thickens as the hero leaves
+       rather than switching state. .44 over the hero → .78 once scrolled. */
+    background: rgba(250, 247, 242, calc(.44 + var(--glass) * .34));
+    backdrop-filter: blur(calc(var(--ds-glass-blur) * .7 + var(--glass) * 12px))
+                     saturate(var(--ds-glass-sat));
+    -webkit-backdrop-filter: blur(calc(var(--ds-glass-blur) * .7 + var(--glass) * 12px))
+                             saturate(var(--ds-glass-sat));
+    /* 8px: softened, but not a pill. The rest of the site is 2px, and a fully
+       round bar would be the only capsule on it. */
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, calc(.35 + var(--glass) * .3));
+    box-shadow: var(--ds-glass-lift);
 
-.ds-utility__item {
+    /* --- the 3D ---
+       The bar is a physical pane tilting under the pointer, not a flat
+       rectangle. The rotation is tiny on purpose: past about 5° the text starts
+       to visibly keystone and the bar stops looking like glass and starts
+       looking like a CSS demo. preserve-3d lets the sheen sit on its own plane
+       just above the surface. */
+    transform-style: preserve-3d;
+    transform:
+        rotateX(calc(var(--ty, 0) * 3.2deg))
+        rotateY(calc(var(--tx, 0) * 4deg))
+        translateZ(0);
+    transition: background-color var(--ds-med) var(--ds-ease),
+                box-shadow var(--ds-med) var(--ds-ease),
+                border-color var(--ds-med) var(--ds-ease),
+                transform 400ms var(--ds-ease);
+}
+
+/* The specular sweep: a soft white bloom that follows the cursor across the
+   pane, which is what sells glass as a lit surface rather than a tinted one.
+   Pointer-events off so it never intercepts a click on the controls beneath. */
+.ds-bar::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+        22rem circle at calc(var(--px, 50) * 1%) calc(var(--py, 50) * 1%),
+        rgba(255, 255, 255, .55),
+        rgba(255, 255, 255, .12) 38%,
+        transparent 62%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--ds-med) var(--ds-ease);
+    transform: translateZ(1px);
+}
+.ds-bar:hover::after { opacity: 1; }
+
+/* Touch has no cursor to track and reduced motion should not have the pane
+   swinging about, so both get a flat, still bar. */
+@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+    .ds-bar { transform: none; transition: background-color var(--ds-med) var(--ds-ease); }
+    .ds-bar::after { display: none; }
+}
+
+/* --- brand ------------------------------------------------------------ */
+
+.ds-bar__brand {
     display: inline-flex;
     align-items: center;
-    gap: .5rem;
-    transition: color var(--ds-fast) var(--ds-ease);
+    gap: .65rem;
+    margin-right: auto;      /* everything else is pushed to the right */
+    text-decoration: none;
+    white-space: nowrap;
+    min-width: 0;
 }
-.ds-utility__item i { color: var(--ds-clay); font-size: .8rem; }
+.ds-bar__brand .brand-mark {
+    width: 26px; height: 26px;
+    color: var(--ds-wine);
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.ds-bar__brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
+.ds-bar__brand .brand-name {
+    font-family: var(--ds-serif);
+    font-size: .95rem;
+    font-weight: 400;
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    color: var(--ds-charcoal);
+    white-space: nowrap;
+}
 
-/* The note is the first thing to go, then the email address. The hotline and
-   the social row survive to the narrowest width. */
-.ds-utility__note { margin-left: auto; color: rgba(250, 247, 242, .5); }
+/* --- icon cluster ----------------------------------------------------- */
 
-.ds-utility__social { display: inline-flex; align-items: center; gap: .25rem; }
-.ds-utility__social a {
-    display: grid;
-    place-items: center;
-    width: 1.85rem; height: 1.85rem;
-    border: 1px solid rgba(250, 247, 242, .16);
-    border-radius: 50%;
-    font-size: .72rem;
-    transition: background-color var(--ds-fast) var(--ds-ease),
-                border-color var(--ds-fast) var(--ds-ease),
+.ds-bar__icons { display: inline-flex; align-items: center; gap: .95rem; }
+
+/* Bare glyphs — no disc, no ring. Three outlined circles in a row read as
+   buttons competing with Book now; the marks alone are quieter and let the
+   brand and the CTA carry the bar. The gap does the separating instead. */
+.ds-bar__icons a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2.5rem;
+    font-size: 1.05rem;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    transition: color var(--ds-fast) var(--ds-ease),
                 transform var(--ds-fast) var(--ds-ease);
 }
-.ds-utility__social a:hover {
-    background: var(--ds-wine);
-    border-color: var(--ds-wine);
+.ds-bar__icons a:hover {
+    color: var(--ds-wine);
     transform: translateY(-2px);
 }
 
-@media (max-width: 991.98px) {
-    .ds-utility__note, .ds-utility__item--wide { display: none; }
-    .ds-utility__social { margin-left: auto; }
-}
-
-/* --- main bar --------------------------------------------------------- */
-
-.navbar {
-    position: relative;   /* the sticky behaviour now belongs to .ds-header */
-    background-color: rgba(250, 247, 242, .82) !important;
-    backdrop-filter: saturate(140%) blur(14px);
-    -webkit-backdrop-filter: saturate(140%) blur(14px);
-    border-bottom: 1px solid transparent;
-    box-shadow: none !important;
-    transition: background-color var(--ds-med) var(--ds-ease),
-                border-color var(--ds-med) var(--ds-ease),
-                padding-block var(--ds-med) var(--ds-ease);
-    padding-block: .85rem;
-}
-/* Set once the page has scrolled, so the bar only asserts itself over content. */
-.ds-header.is-stuck .navbar {
-    background-color: rgba(250, 247, 242, .96) !important;
-    border-bottom-color: var(--ds-sand);
-    padding-block: .5rem;
-}
-
-.navbar .nav-link {
-    font-family: var(--ds-sans);
-    font-size: .74rem !important;
-    font-weight: 400;
-    letter-spacing: var(--ds-track-nav);
-    text-transform: uppercase;
-    color: var(--ds-charcoal) !important;
-    background: none !important;
-    border-radius: 0;
-    padding: .5rem .25rem !important;
-    margin: 0 .9rem !important;
-    position: relative;
-}
-.navbar .nav-link i { display: none; }   /* the icons fight the type */
-
-/* Underline that draws in from the left. */
-.navbar .nav-link::after {
-    content: "";
-    position: absolute;
-    left: 0; bottom: .1rem;
-    width: 100%; height: 1px;
-    background: var(--ds-wine);
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform var(--ds-med) var(--ds-ease);
-}
-.navbar .nav-link:hover::after,
-.navbar .nav-link.active::after,
-.navbar .nav-link[aria-current="page"]::after { transform: scaleX(1); }
-.navbar .nav-link:hover,
-.navbar .nav-link.active,
-.navbar .nav-link[aria-current="page"] { color: var(--ds-wine) !important; }
-
-.navbar .logout-btn { color: var(--ds-muted) !important; }
-.navbar .logout-btn:hover { color: var(--ds-danger) !important; }
-.navbar .logout-btn::after { background: var(--ds-danger); }
-
-/* --- section dropdown ------------------------------------------------- */
-
-/* Bootstrap supplies the open/close plumbing; everything visible here is ours.
-   Animated with transform + opacity only, so it composites on the GPU. */
-.navbar .dropdown-menu {
-    border: 1px solid var(--ds-sand);
-    border-radius: var(--ds-radius);
-    box-shadow: var(--ds-shadow-lg);
-    background: var(--ds-ivory);
-    padding: .5rem;
-    margin-top: .75rem;
-    min-width: 15rem;
-}
-@media (min-width: 992px) {
-    /* Bootstrap toggles display, which cannot transition. Keep it in the layout
-       and animate visibility instead so the panel actually eases in. */
-    .navbar .dropdown-menu {
-        display: block;
-        opacity: 0;
-        visibility: hidden;
-        transform: translateY(-6px);
-        transition: opacity var(--ds-fast) var(--ds-ease),
-                    transform var(--ds-fast) var(--ds-ease),
-                    visibility var(--ds-fast);
-    }
-    .navbar .dropdown-menu.show {
-        opacity: 1;
-        visibility: visible;
-        transform: translateY(0);
-    }
-}
-.navbar .dropdown-item {
-    display: flex;
-    align-items: baseline;
-    gap: .2rem;
-    flex-direction: column;
-    padding: .6rem .85rem;
-    border-radius: var(--ds-radius);
-    font-size: .9rem;
-    color: var(--ds-charcoal);
-    white-space: normal;
-    transition: background-color var(--ds-fast) var(--ds-ease),
-                color var(--ds-fast) var(--ds-ease);
-}
-.navbar .dropdown-item:hover,
-.navbar .dropdown-item:focus-visible {
-    background: var(--ds-shell);
-    color: var(--ds-wine);
-}
-.navbar .dropdown-item small {
-    font-size: .74rem;
-    color: var(--ds-muted);
-    letter-spacing: 0;
-    text-transform: none;
-}
-.navbar .dropdown-toggle::after {
-    /* Bootstrap's caret is a filled triangle; a hairline chevron matches the
-       rest of the arrows in the design layer. */
-    content: none;
-}
-.navbar .dropdown-toggle .ds-caret {
-    display: inline-block;
-    margin-left: .4rem;
-    transition: transform var(--ds-fast) var(--ds-ease);
-}
-.navbar .dropdown-toggle.show .ds-caret { transform: rotate(180deg); }
-
-/* --- actions ---------------------------------------------------------- */
-
-.ds-nav-actions {
-    display: flex;
-    align-items: center;
-    gap: .75rem;
-}
-
-/* On a phone the brand wordmark, the CTA and the toggler cannot all fit on one
-   row — measured, they need 441px of a 375px bar. The wordmark is what gives
-   way: the emblem still identifies the site, and the booking CTA is worth more
-   there than the name is. Above sm everything fits and the name returns. */
-@media (max-width: 575.98px) {
-    .navbar-brand .brand-name { display: none; }
-    .ds-nav-cta { padding-inline: 1rem; }
-}
-
-/* The booking CTA. The one saturated element in the bar, because on a hotel
-   site it is the only thing the bar is really for. */
-.ds-nav-cta {
-    position: relative;
-    overflow: hidden;
+/* The hotline keeps its outline: it is the one that expands, so it needs a
+   container edge to expand within. */
+.ds-tel {
     display: inline-flex;
     align-items: center;
-    gap: .5rem;
-    padding: .6rem 1.35rem;
+    height: 2.5rem;
+    border: 1px solid var(--ds-sand);
+    border-radius: 999px;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                border-color var(--ds-fast) var(--ds-ease),
+                color var(--ds-fast) var(--ds-ease);
+}
+
+/* The hotline. A phone icon at rest that widens on hover to show the number,
+   so it costs the width of one icon but is never ambiguous once approached.
+   max-width is what animates — width cannot transition to `auto`, and the
+   number's own length decides how wide it needs to be. */
+.ds-tel {
+    /* Collapsed to exactly its own height, so it is a circle until it opens. */
+    max-width: 2.5rem;
+    /* Never let the bar's flex layout squeeze it. `overflow: hidden` makes a
+       flex item's automatic min-width resolve to 0, so without this the bar
+       silently crushes the hotline to a sliver whenever space is tight instead
+       of it staying the size the max-width above asks for. */
+    flex: 0 0 auto;
+    padding-left: .74rem;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width var(--ds-med) var(--ds-ease),
+                background-color var(--ds-fast) var(--ds-ease),
+                border-color var(--ds-fast) var(--ds-ease),
+                color var(--ds-fast) var(--ds-ease);
+}
+.ds-tel i { font-size: .88rem; color: var(--ds-wine); transition: color var(--ds-fast) var(--ds-ease); }
+.ds-tel span {
+    padding: 0 .85rem 0 .5rem;
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-ui);
+}
+/* focus-within so a keyboard reaches it too, not just a pointer. */
+.ds-tel:hover, .ds-tel:focus-within {
+    max-width: 16rem;
+    background: var(--ds-wine);
+    border-color: var(--ds-wine);
+    color: var(--ds-ivory);
+}
+.ds-tel:hover i, .ds-tel:focus-within i { color: var(--ds-ivory); }
+
+/* No hover to reveal it on a touch screen, so it simply stays open. */
+/* A touch screen has no hover to reveal the number with, so it stays open —
+   but only where there is room. On a phone the number plus Book now plus Menu
+   is wider than the bar, and there it stays a circular tap-to-call button,
+   which on a phone is the more useful control anyway. */
+@media (hover: none) and (min-width: 768px) {
+    .ds-tel { max-width: 16rem; }
+}
+
+/* --- book + menu ------------------------------------------------------ */
+
+.ds-book {
+    display: inline-flex;
+    align-items: center;
+    height: 2.4rem;
+    padding: 0 1.3rem;
     background: var(--ds-wine);
     color: var(--ds-ivory) !important;
-    font-size: .7rem;
+    border-radius: 6px;
+    font-size: .68rem;
     font-weight: 500;
     letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     text-decoration: none;
-    border: 1px solid var(--ds-wine);
-    border-radius: var(--ds-radius);
     white-space: nowrap;
-    transition: color var(--ds-med) var(--ds-ease);
+    transition: background-color var(--ds-med) var(--ds-ease);
 }
-/* Wipe fill: a deeper wine sweeps up from the bottom on hover. Sits behind the
-   label via z-index rather than opacity, so the text never dims with it. */
-.ds-nav-cta::before {
+.ds-book:hover, .ds-book:focus-visible { background: var(--ds-charcoal); }
+
+.ds-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: .6rem;
+    height: 2.4rem;
+    padding: 0 1rem 0 .95rem;
+    background: transparent;
+    border: 1px solid var(--ds-sand);
+    border-radius: 6px;
+    color: var(--ds-charcoal);
+    font-family: var(--ds-sans);
+    font-size: .68rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                border-color var(--ds-fast) var(--ds-ease);
+}
+.ds-menu-btn:hover { background: var(--ds-shell); border-color: var(--ds-clay); }
+
+.ds-menu-btn__glyph { display: grid; gap: 4px; }
+.ds-menu-btn__glyph span {
+    display: block;
+    width: 1.05rem; height: 1px;
+    background: var(--ds-charcoal);
+    transition: transform var(--ds-med) var(--ds-ease);
+}
+.ds-menu-btn:hover .ds-menu-btn__glyph span:first-child { transform: translateX(3px); }
+
+/* --- staff bar -------------------------------------------------------- */
+
+/* A clerk wants their dashboard, not a hotline and a booking button, and they
+   should not have to open a menu to reach it. Plain inline links. */
+.ds-bar__staff { display: inline-flex; align-items: center; gap: 1.5rem; }
+.ds-bar__staff a,
+.ds-bar__staff button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-family: var(--ds-sans);
+    font-size: .7rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-nav);
+    text-transform: uppercase;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+.ds-bar__staff a:hover,
+.ds-bar__staff button:hover,
+.ds-bar__staff a[aria-current="page"] { color: var(--ds-wine); }
+
+/* --- the menu --------------------------------------------------------- */
+
+.ds-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    /* Frosted rather than solid ivory, so the hero stays faintly readable
+       behind it and the menu feels like a pane over the page rather than a
+       different page. */
+    background: rgba(250, 247, 242, .86);
+    backdrop-filter: blur(calc(var(--ds-glass-blur) * 1.4)) saturate(var(--ds-glass-sat));
+    -webkit-backdrop-filter: blur(calc(var(--ds-glass-blur) * 1.4)) saturate(var(--ds-glass-sat));
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-1.5rem);
+    transition: opacity var(--ds-med) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease),
+                visibility var(--ds-med);
+    overflow-y: auto;
+}
+.ds-menu.is-open { opacity: 1; visibility: visible; transform: none; }
+
+.ds-menu__inner {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: clamp(2.5rem, 6vw, 5rem);
+    width: min(72rem, calc(100% - 2 * var(--ds-gutter)));
+    margin: 0 auto;
+    padding: clamp(6rem, 12vh, 9rem) 0 4rem;
+}
+@media (min-width: 768px) {
+    .ds-menu__inner { grid-template-columns: 1.4fr 1fr; align-items: start; }
+}
+
+.ds-menu__close {
+    position: fixed;
+    top: clamp(1.4rem, 2.5vw, 2.2rem);
+    right: clamp(1.4rem, 4vw, 3.2rem);
+    display: grid;
+    place-items: center;
+    width: 2.75rem; height: 2.75rem;
+    background: transparent;
+    border: 1px solid var(--ds-sand);
+    border-radius: 999px;
+    color: var(--ds-charcoal);
+    font-size: 1.1rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease);
+}
+.ds-menu__close:hover { background: var(--ds-shell); transform: rotate(90deg); }
+
+/* The sections, set large. This is the only place they appear. */
+.ds-menu__nav { display: flex; flex-direction: column; }
+/* Set at this size in a serif, a word reads as a heading rather than as
+   something you can click. A rule that draws itself in from the left and pushes
+   the word across is what marks these as navigation — the affordance arrives on
+   approach instead of decorating every line permanently. */
+.ds-menu__link {
+    position: relative;
+    display: block;
+    width: fit-content;
+    padding: .35rem 0;
+    font-family: var(--ds-serif);
+    font-size: clamp(2rem, 5vw, 3.4rem);
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    /* Each line rises in as the menu opens; --i staggers them. */
+    opacity: 0;
+    transform: translateY(1rem);
+    transition: color var(--ds-fast) var(--ds-ease),
+                opacity var(--ds-med) var(--ds-ease),
+                transform var(--ds-med) var(--ds-ease);
+}
+.ds-menu.is-open .ds-menu__link {
+    opacity: 1;
+    transform: none;
+    transition-delay: calc(var(--i, 0) * 60ms + 80ms);
+}
+
+/* Hover moves the label with a transform and grows the rule with a scale.
+   Both are composited — nothing here touches layout.
+
+   The previous version animated the link's padding-left and the rule's width,
+   which forced a layout pass on every frame of every hover and made the whole
+   list stutter. It also reflowed the link box under the cursor, so the pointer
+   could fall out of the element mid-transition and the hover would flicker. */
+.ds-menu__link > span {
+    display: inline-block;
+    transition: transform var(--ds-med) var(--ds-ease);
+    will-change: transform;
+}
+.ds-menu__link:hover > span,
+.ds-menu__link:focus-visible > span,
+.ds-menu__link[aria-current="page"] > span { transform: translateX(3.4rem); }
+
+/* The leading rule. Fixed width, revealed by scaling from its left edge, so it
+   grows without the browser recomputing anything. */
+.ds-menu__link::before {
     content: "";
     position: absolute;
-    inset: 0;
-    background: var(--ds-charcoal);
-    transform: translateY(101%);
+    left: 0;
+    top: 50%;
+    width: 2.6rem;
+    height: 1px;
+    background: var(--ds-clay);
+    transform: scaleX(0);
+    transform-origin: left center;
     transition: transform var(--ds-med) var(--ds-ease);
-    z-index: 0;
 }
-.ds-nav-cta > * { position: relative; z-index: 1; }
-.ds-nav-cta:hover::before, .ds-nav-cta:focus-visible::before { transform: translateY(0); }
+.ds-menu__link:hover,
+.ds-menu__link:focus-visible,
+.ds-menu__link[aria-current="page"] { color: var(--ds-wine); }
+.ds-menu__link:hover::before,
+.ds-menu__link:focus-visible::before,
+.ds-menu__link[aria-current="page"]::before { transform: scaleX(1); }
 
-/* --- animated toggler ------------------------------------------------- */
-
-/* Three rules that morph into a cross. Bootstrap's default is a background
-   image, which cannot animate between the two states. */
-.navbar-toggler {
-    display: grid;
-    place-content: center;
-    gap: 5px;
-    width: 2.75rem; height: 2.75rem;
-    padding: 0;
-    border: 1px solid var(--ds-sand);
-    border-radius: var(--ds-radius);
-    background: transparent;
+/* Sub-entries under Stay — the room types, which are the actual booking
+   destinations and would otherwise need a dropdown. Indented behind a clay
+   hairline so they read as belonging to Stay: sitting loose between two
+   headings, they looked like a third, smaller heading of their own. */
+.ds-menu__sub {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .3rem 1.4rem;
+    /* Tight to Stay above, generous before Amenities below — the asymmetry is
+       what assigns them to the word they belong to. */
+    margin: .1rem 0 1.5rem;
+    padding: .15rem 0 .15rem 1.15rem;
+    border-left: 1px solid var(--ds-clay);
 }
-.navbar-toggler:focus { box-shadow: none; }
-.navbar-toggler__bar {
+.ds-menu__sub a {
+    position: relative;
+    font-size: .8rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    color: var(--ds-muted);
+    text-decoration: none;
+    padding-bottom: 2px;
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+.ds-menu__sub a::after {
+    content: "";
+    position: absolute;
+    left: 0; bottom: 0;
+    width: 100%; height: 1px;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--ds-fast) var(--ds-ease);
+}
+.ds-menu__sub a:hover { color: var(--ds-wine); }
+.ds-menu__sub a:hover::after { transform: scaleX(1); }
+
+.ds-menu__aside { display: grid; gap: 2.25rem; }
+.ds-menu__label {
     display: block;
-    width: 1.25rem; height: 1px;
-    background: var(--ds-charcoal);
-    transition: transform var(--ds-med) var(--ds-ease),
-                opacity var(--ds-fast) var(--ds-ease);
+    font-size: .64rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-wide);
+    text-transform: uppercase;
+    color: var(--ds-clay);
+    margin-bottom: .9rem;
 }
-.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(2) { opacity: 0; }
-.navbar-toggler[aria-expanded="true"] .navbar-toggler__bar:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+.ds-menu__houses { list-style: none; margin: 0; padding: 0; }
+.ds-menu__houses li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: .45rem 0;
+    border-bottom: 1px solid var(--ds-sand);
+    font-size: .9rem;
+}
+.ds-menu__houses li:last-child { border-bottom: 0; }
+.ds-menu__houses span { color: var(--ds-muted); font-size: .8rem; }
 
-/* --- mobile panel ----------------------------------------------------- */
+.ds-menu__contact a {
+    display: block;
+    font-family: var(--ds-serif);
+    font-size: 1.15rem;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    margin-bottom: .35rem;
+    width: fit-content;
+    border-bottom: 1px solid transparent;
+    transition: border-color var(--ds-fast) var(--ds-ease);
+}
+.ds-menu__contact a:hover { border-bottom-color: var(--ds-clay); }
 
-.ds-navpanel { background: var(--ds-ivory); border-left: 1px solid var(--ds-sand); }
-.ds-navpanel .offcanvas-header { padding: 1.25rem var(--ds-gutter); border-bottom: 1px solid var(--ds-sand); }
-.ds-navpanel .offcanvas-body { padding: 1.5rem var(--ds-gutter) 2rem; }
+.ds-menu__account { display: flex; flex-wrap: wrap; gap: .5rem 1.25rem; }
+.ds-menu__account a,
+.ds-menu__account button {
+    background: none;
+    border: 0;
+    padding: 0;
+    font-family: var(--ds-sans);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: var(--ds-track-ui);
+    text-transform: uppercase;
+    color: var(--ds-charcoal);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--ds-fast) var(--ds-ease);
+}
+.ds-menu__account a:hover,
+.ds-menu__account button:hover { color: var(--ds-wine); }
 
-@media (max-width: 991.98px) {
-    .ds-navpanel .nav-link {
-        display: block;
-        margin: 0 !important;
-        padding: .9rem 0 !important;
-        font-size: .95rem !important;
-        letter-spacing: var(--ds-track-ui);
-        border-bottom: 1px solid var(--ds-sand);
-    }
-    .ds-navpanel .nav-link::after { content: none; }
-    .ds-navpanel .dropdown-menu {
-        border: 0;
-        box-shadow: none;
-        margin: 0;
-        padding: 0 0 .5rem .75rem;
-        background: transparent;
-    }
-    .ds-navpanel .ds-nav-actions {
-        flex-direction: column;
-        align-items: stretch;
-        margin-top: 1.75rem;
-    }
-    .ds-navpanel .ds-nav-cta { justify-content: center; padding-block: .9rem; }
+.ds-menu__social { display: flex; gap: .4rem; }
+.ds-menu__social a {
+    display: grid;
+    place-items: center;
+    width: 2.1rem; height: 2.1rem;
+    border: 1px solid var(--ds-sand);
+    border-radius: 999px;
+    color: var(--ds-charcoal);
+    font-size: .74rem;
+    transition: background-color var(--ds-fast) var(--ds-ease),
+                border-color var(--ds-fast) var(--ds-ease),
+                color var(--ds-fast) var(--ds-ease);
+}
+.ds-menu__social a:hover {
+    background: var(--ds-wine);
+    border-color: var(--ds-wine);
+    color: var(--ds-ivory);
+}
 
-    /* Links arrive in sequence once the panel has opened. --i is set on each
-       item in the markup, so nothing here needs to know how many there are. */
-    .ds-navpanel .ds-navpanel__item {
-        opacity: 0;
-        transform: translateX(1.25rem);
-    }
-    .ds-navpanel.show .ds-navpanel__item {
-        opacity: 1;
-        transform: none;
-        transition: opacity var(--ds-med) var(--ds-ease),
-                    transform var(--ds-med) var(--ds-ease);
-        transition-delay: calc(var(--i, 0) * 55ms + 90ms);
-    }
+/* --- narrow ----------------------------------------------------------- */
+
+@media (max-width: 767.98px) {
+    /* The socials are in the menu and the footer; the bar keeps the hotline,
+       Book and Menu, which are the three things worth a tap from here. */
+    .ds-bar__icons { display: none; }
+    .ds-bar { gap: .6rem; padding-left: 1rem; }
+    .ds-book { padding: 0 .95rem; }
+    .ds-menu-btn__label { display: none; }
+    .ds-menu-btn { padding: 0 .8rem; }
+}
+@media (max-width: 420px) {
+    /* The name and the three controls together exceed the bar. */
+    .ds-bar__brand .brand-name { display: none; }
 }
 
 /* --- reading progress ------------------------------------------------- */
 
-/* A hairline across the foot of the header tracking how far down the document
-   you are. Driven by a scroll-driven animation where the browser supports one:
-   it runs off the main thread, so it stays smooth while the page is busy. The
-   @supports guard means unsupporting browsers get a bar that is simply never
-   drawn, which is the correct degradation for pure decoration. */
 .ds-progress {
     position: absolute;
-    left: 0; bottom: -1px;
+    left: 0; right: 0; bottom: 0;
     height: 2px;
-    width: 100%;
     background: linear-gradient(90deg, var(--ds-clay), var(--ds-wine));
     transform: scaleX(0);
     transform-origin: left;
+    border-radius: 0 0 8px 8px;
+    opacity: 0;
+    transition: opacity var(--ds-med) var(--ds-ease);
 }
+.ds-header.is-stuck .ds-progress { opacity: 1; }
 @supports (animation-timeline: scroll()) {
     .ds-progress {
         animation: ds-progress linear;
@@ -664,7 +891,9 @@ html {
     .ds-header { transition: none; }
     .ds-header.is-hidden { transform: none; }   /* never animate the bar away */
     .ds-progress { animation: none; }
-    .ds-navpanel .ds-navpanel__item { opacity: 1; transform: none; transition: none; }
+    .ds-menu, .ds-menu__link { transition: opacity var(--ds-fast) linear; transform: none; }
+    .ds-menu__link { opacity: 1; }
+    .ds-menu__close:hover { transform: none; }
 }
 
 /* 5. Buttons --------------------------------------------------------------- */
@@ -814,11 +1043,19 @@ html {
 
 /* 7. Cards, panels, tables -------------------------------------------------- */
 
+/* Cards and panels are glass too, so the material is the site's and not just
+   the nav bar's. The tint is --ds-glass-solid rather than the thin chrome tint:
+   these carry body copy and tables, and text needs a settled ground under it.
+   Over the ivory page the effect is subtle by design — a blur only has
+   something to show where there is something behind it — but it lands properly
+   wherever a card sits over a photograph or a coloured band. */
 .card {
-    background-color: var(--ds-white);
-    border: 1px solid var(--ds-sand);
+    background-color: var(--ds-glass-solid);
+    backdrop-filter: blur(var(--ds-glass-blur)) saturate(var(--ds-glass-sat));
+    -webkit-backdrop-filter: blur(var(--ds-glass-blur)) saturate(var(--ds-glass-sat));
+    border: 1px solid var(--ds-glass-edge);
     border-radius: var(--ds-radius);
-    box-shadow: none;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6);
     transition: box-shadow var(--ds-med) var(--ds-ease),
                 transform var(--ds-med) var(--ds-ease),
                 border-color var(--ds-med) var(--ds-ease);
@@ -833,9 +1070,12 @@ html {
 }
 
 .ds-panel {
-    background: var(--ds-white);
-    border: 1px solid var(--ds-sand);
+    background: var(--ds-glass-solid);
+    backdrop-filter: blur(var(--ds-glass-blur)) saturate(var(--ds-glass-sat));
+    -webkit-backdrop-filter: blur(var(--ds-glass-blur)) saturate(var(--ds-glass-sat));
+    border: 1px solid var(--ds-glass-edge);
     border-radius: var(--ds-radius);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6);
     padding: clamp(1.5rem, 3vw, 2.75rem);
 }
 

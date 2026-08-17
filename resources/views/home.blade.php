@@ -1,20 +1,25 @@
 @extends('layouts.app')
 
+{{-- Declares that this page opens with a full-bleed hero. The layout reads it
+     to decide two things: the header overlays transparently instead of sitting
+     on ivory, and <main> does NOT reserve the fixed bar's height. "fullwidth"
+     cannot answer that — the auth pages are full-width too, but they open on an
+     ivory panel, where ivory nav type would be invisible. --}}
+@section('hero', 'true')
+
 @section('fullwidth')
 <!-- Hero Section - Updated with Image Background -->
 <section class="modern-hero">
-    <!-- Parallax Background Layers.
-         These are the fallback: they render on their own wherever WebGL is
-         unavailable, and are faded out by .has-webgl once the shader is live. -->
+    <!-- The hero photograph. One layer, no shader.
+         It used to be three stacked photos under a WebGL prism: the top layer
+         was opaque and full-bleed, so the two beneath it were never visible and
+         only cost two image downloads, and the shader's refraction was what
+         made the building look soft. Depth now comes from pointer parallax
+         (see the hero script below), which leaves the photo pixel-sharp. -->
     <div class="parallax-container">
-        <div class="parallax-layer background-layer" style="background-image: url('images/heroOne.jpg');"></div>
-        <div class="parallax-layer mid-layer" style="background-image: url('images/heroTwo.jpg');"></div>
-        <div class="parallax-layer foreground-layer" style="background-image: url('images/heroThree.jpg');"></div>
+        <div class="parallax-layer foreground-layer" style="background-image: url('{{ asset('images/heroThree.jpg') }}');"></div>
         <div class="color-overlay"></div>
     </div>
-
-    <!-- WebGL refraction layer. Sits above the parallax fallback, below content. -->
-    <canvas id="hero-canvas" data-texture="{{ asset('images/heroThree.jpg') }}"></canvas>
 
     <!-- Hero Content with Animated Elements -->
     <div class="hero-content-wrapper">
@@ -51,12 +56,6 @@
                 </div>
             </div>
         </div>
-    </div>
-
-    <!-- Scroll Indicator -->
-    <div class="modern-scroll-indicator">
-        <div class="scroll-text">Scroll</div>
-        <div class="scroll-line"></div>
     </div>
 
     <!-- Social Proof -->
@@ -447,12 +446,21 @@
     /* Modern Luxury Hero Styles */
     .modern-hero {
         position: relative;
+        /* One screen exactly. svh is the small viewport height, so a phone's
+           collapsing address bar cannot make the hero taller than what is
+           actually visible; vh is the fallback where svh is unsupported. */
         height: 100vh;
-        min-height: 800px;
+        height: 100svh;
+        /* Was 800px, which is taller than a 720p laptop viewport — it forced the
+           hero past the fold on exactly the screens that could least afford it. */
+        min-height: 560px;
         overflow: hidden;
         color: #fff;
         display: flex;
         align-items: center;
+        /* Without this the layer's rotateX/rotateY are flat and the tilt does
+           nothing — a 3D rotation needs a perspective on an ancestor. */
+        perspective: 1200px;
     }
 
     /* Parallax Background Effect */
@@ -471,24 +479,26 @@
         width: 100%;
         height: 100%;
         background-size: cover;
-        background-position: center;
+        /* Bottom-weighted. With `cover`, a higher percentage slides the photo
+           further up and shows more of its lower half — so this crops away the
+           empty sky and brings the building's base into frame. (25% did the
+           opposite: it pulled the photo down and put more sky on screen.) */
+        background-position: center 95%;
         will-change: transform;
     }
 
-    .background-layer {
-        transform: translateZ(-2px) scale(3);
-        z-index: 1;
-        filter: blur(2px);
-    }
-
-    .mid-layer {
-        transform: translateZ(-1px) scale(2);
-        z-index: 2;
-        opacity: 0.8;
-    }
-
+    /* The photo drifts against the pointer and tilts slightly, so the hero has
+       depth without anything blurring it. Scaled a little so the drift can
+       never pull an edge into frame. The transition is what does the easing —
+       the pointer sets a target and the layer catches up to it. */
     .foreground-layer {
         z-index: 3;
+        transform:
+            scale(1.08)
+            translate3d(calc(var(--mx, 0) * -18px), calc(var(--my, 0) * -14px), 0)
+            rotateX(calc(var(--my, 0) * 1.6deg))
+            rotateY(calc(var(--mx, 0) * -1.6deg));
+        transition: transform 500ms cubic-bezier(.22, .61, .36, 1);
     }
 
     .color-overlay {
@@ -501,31 +511,25 @@
         z-index: 4;
     }
 
-    /* WebGL refraction layer.
-       Hidden until the shader has a texture bound, so a slow network or a
-       missing WebGL context degrades to the CSS parallax rather than to black. */
-    #hero-canvas {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: block;
-        z-index: 3;
-        opacity: 0;
-        transition: opacity 1.2s ease;
+    /* The content drifts the opposite way to the photo behind it. Opposed
+       motion at different rates is what actually reads as depth — moving both
+       the same way just slides the whole hero around. */
+    .hero-content-wrapper {
+        /* Sits below centre rather than on it, so the heading reads against the
+           building now that the frame is bottom-weighted, instead of floating
+           in the empty upper area. */
+        margin-top: clamp(3rem, 11vh, 8rem);
+        transform: translate3d(calc(var(--mx, 0) * 9px), calc(var(--my, 0) * 7px), 0);
+        transition: transform 600ms cubic-bezier(.22, .61, .36, 1);
     }
 
-    #hero-canvas.is-ready {
-        opacity: 1;
-    }
-
-    /* Once WebGL is driving the hero, the photographic layers underneath are
-       redundant — fade them out rather than removing them, so a lost context
-       can fall back without a jump. */
-    .modern-hero.has-webgl .parallax-layer {
-        opacity: 0;
-        transition: opacity 1.2s ease;
+    /* Parallax is a pointer affordance. Touch has no hover, and under reduced
+       motion the drift is exactly the kind of movement being opted out of, so
+       both get the photo sitting still. */
+    @media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
+        .foreground-layer,
+        .hero-content-wrapper { transform: scale(1.02); transition: none; }
+        .hero-content-wrapper { transform: none; }
     }
 
     /* Hero Content Styling */
@@ -629,38 +633,6 @@
         letter-spacing: 0.1em;
         text-transform: uppercase;
         color: rgba(255,255,255,0.8);
-    }
-
-    /* Modern Scroll Indicator */
-    .modern-scroll-indicator {
-        position: absolute;
-        left: 50%;
-        bottom: 2rem;
-        transform: translateX(-50%);
-        z-index: 6;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .scroll-text {
-        font-size: 0.75rem;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-        margin-bottom: 0.5rem;
-        color: rgba(255,255,255,0.6);
-        animation: pulse 2s infinite;
-    }
-
-    .scroll-line {
-        width: 1px;
-        height: 50px;
-        background: linear-gradient(to bottom, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 100%);
-    }
-
-    @keyframes pulse {
-        0%, 100% { opacity: 0.6; }
-        50% { opacity: 1; }
     }
 
     /* Social Proof */
@@ -833,7 +805,53 @@ document.addEventListener('DOMContentLoaded', function() {
 @endsection
 
 @section('scripts')
-    {{-- The only page that loads the Vite bundle; everything else on this site
-         is served from CDNs. Kept as a module so three.js tree-shakes. --}}
-    @vite(['resources/js/hero.js', 'resources/js/gallery.js'])
+    {{-- Only the gallery loads WebGL now. hero.js is no longer mounted: its
+         prism shader refracted the photograph, which is what made the building
+         look soft and put colour fringing on its edges. The file is still in
+         resources/js if the effect is ever wanted back. --}}
+    @vite(['resources/js/gallery.js'])
+
+    <script>
+        (function () {
+            'use strict';
+
+            var hero = document.querySelector('.modern-hero');
+            if (!hero) return;
+
+            // Matches the CSS opt-outs above, so the listener is never even
+            // attached on touch or under reduced motion.
+            var enabled = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+                && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            if (!enabled) return;
+
+            var mx = 0, my = 0, ticking = false;
+
+            var apply = function () {
+                ticking = false;
+                hero.style.setProperty('--mx', mx.toFixed(4));
+                hero.style.setProperty('--my', my.toFixed(4));
+            };
+
+            hero.addEventListener('pointermove', function (e) {
+                var r = hero.getBoundingClientRect();
+                if (!r.width || !r.height) return;
+                // Normalise to -1..1 about the centre, so the CSS can express
+                // each layer's travel as a plain multiplier.
+                mx = ((e.clientX - r.left) / r.width - 0.5) * 2;
+                my = ((e.clientY - r.top) / r.height - 0.5) * 2;
+                if (ticking) return;
+                ticking = true;
+                window.requestAnimationFrame(apply);
+            });
+
+            // Settle back to centre when the pointer leaves, otherwise the hero
+            // stays frozen at whatever angle it was last pushed to.
+            hero.addEventListener('pointerleave', function () {
+                mx = my = 0;
+                if (ticking) return;
+                ticking = true;
+                window.requestAnimationFrame(apply);
+            });
+        })();
+    </script>
 @endsection

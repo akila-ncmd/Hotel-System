@@ -93,27 +93,152 @@
          page before reaching the content. --}}
     <a class="ds-skip" href="#main">Skip to content</a>
 
-    <header class="ds-header" id="top" data-ds-header>
+    {{-- The launcher bar. Deliberately almost empty: brand, hotline, socials,
+         Book now and Menu. The four sections live in the full-screen menu
+         below, which is what keeps this to one soft-cornered strip floating
+         over the hero instead of a structure sitting on the photograph.
+         The menu is the navigation at every width, so there is no separate
+         mobile panel and no dropdown. --}}
+    <header class="ds-header @hasSection('hero') ds-header--over @endif"
+            id="top" data-ds-header>
 
-        @unless ($isStaff)
-            {{-- Utility strip: the hotline is the single most-wanted piece of
-                 information on a hotel site, so it sits above everything and is
-                 reachable without scrolling. Folds away once the page moves. --}}
-            <div class="ds-utility">
+        <div class="ds-bar" data-ds-bar>
+            <a class="ds-bar__brand" href="{{ route('home') }}">
+                {{-- Text-free emblem; the name comes from config('app.name')
+                     so a rename never leaves a stale wordmark in an image. --}}
+                <img src="{{ asset('images/logo.svg') }}" alt="" width="26" height="26" class="brand-mark">
+                <span class="brand-name">{{ config('app.name') }}</span>
+            </a>
+
+            @if ($isStaff)
+                {{-- Staff get their destinations inline. Making a clerk open a
+                     menu to reach the front desk would be a worse tool. --}}
+                <div class="ds-bar__staff">
+                    @if (auth()->user()->role === 'clerk')
+                        <a href="{{ route('clerk.dashboard') }}" @if (request()->routeIs('clerk.dashboard')) aria-current="page" @endif>Dashboard</a>
+                        <a href="{{ route('clerk.front-desk') }}" @if (request()->routeIs('clerk.front-desk')) aria-current="page" @endif>Front desk</a>
+                    @elseif (auth()->user()->role === 'manager')
+                        <a href="{{ route('manager.dashboard') }}" @if (request()->routeIs('manager.dashboard')) aria-current="page" @endif>Dashboard</a>
+                        <a href="{{ route('manager.reports') }}" @if (request()->routeIs('manager.reports')) aria-current="page" @endif>Reports</a>
+                    @else
+                        <a href="{{ route('admin.dashboard') }}" @if (request()->routeIs('admin.dashboard')) aria-current="page" @endif>Dashboard</a>
+                    @endif
+                    <form method="POST" action="{{ route('logout') }}">
+                        @csrf
+                        <button type="submit">Sign out</button>
+                    </form>
+                </div>
+            @else
+                {{-- The hotline reads as a phone icon and widens on hover to
+                     show the number, so it costs one icon of width but is never
+                     ambiguous once you approach it. --}}
+                <a class="ds-tel" href="tel:{{ config('hotel.hotline_tel') }}"
+                   aria-label="Call reception on {{ config('hotel.hotline') }}">
+                    <i class="bi bi-telephone-fill" aria-hidden="true"></i>
+                    <span>{{ config('hotel.hotline') }}</span>
+                </a>
+
+                <div class="ds-bar__icons">
+                    {{-- A blank URL removes the channel rather than rendering a
+                         dead icon. --}}
+                    @foreach (array_filter(config('hotel.social'), fn ($s) => filled($s['url'])) as $social)
+                        <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer"
+                           aria-label="{{ $social['label'] }}">
+                            <i class="{{ $social['icon'] }}" aria-hidden="true"></i>
+                        </a>
+                    @endforeach
+                </div>
+
+                <a class="ds-book" href="{{ $bookHref }}">Book now</a>
+            @endif
+
+            <button class="ds-menu-btn" type="button"
+                    aria-controls="dsMenu" aria-expanded="false" data-ds-menu-open>
+                <span class="ds-menu-btn__glyph" aria-hidden="true">
+                    <span></span><span></span>
+                </span>
+                <span class="ds-menu-btn__label">Menu</span>
+            </button>
+
+            {{-- Reading progress. Decorative, so it is allowed to simply not
+                 exist where scroll-driven animations aren't supported. --}}
+            <span class="ds-progress" aria-hidden="true"></span>
+        </div>
+    </header>
+
+    {{-- The full-screen menu. This is the navigation — every section lives
+         here and nowhere else, on every screen size. --}}
+    <div class="ds-menu" id="dsMenu" data-ds-menu aria-label="Menu" role="dialog" aria-modal="true" inert>
+        <button class="ds-menu__close" type="button" aria-label="Close menu" data-ds-menu-close>&times;</button>
+
+        <div class="ds-menu__inner">
+            <nav class="ds-menu__nav" aria-label="Sections">
+                {{-- The label is wrapped so hover can slide it with a transform.
+                     Sliding the link's own padding animates layout on every
+                     frame, which is what made the hover stutter. --}}
+                @if ($isStaff)
+                    <a class="ds-menu__link" style="--i:0" href="{{ route('home') }}"><span>Home</span></a>
+                    <a class="ds-menu__link" style="--i:1" href="{{ route('dashboard') }}"><span>Dashboard</span></a>
+                @else
+                    <a class="ds-menu__link" style="--i:0" href="{{ $home }}#rooms"><span>Stay</span></a>
+                    <div class="ds-menu__sub">
+                        <a href="{{ $home }}#rooms">Rooms</a>
+                        <a href="{{ $home }}#residential-suites">Residential suites</a>
+                        @auth
+                            @if (auth()->user()->role === 'customer')
+                                <a href="{{ route('customer.reservations') }}">My reservations</a>
+                            @endif
+                        @endauth
+                    </div>
+                    <a class="ds-menu__link" style="--i:1" href="{{ $home }}#explore"><span>Amenities</span></a>
+                    <a class="ds-menu__link" style="--i:2" href="{{ $home }}#gallery"><span>Gallery</span></a>
+                    <a class="ds-menu__link" style="--i:3" href="#contact"><span>Contact</span></a>
+                @endif
+            </nav>
+
+            <div class="ds-menu__aside">
+                @unless ($isStaff)
+                    <div>
+                        <span class="ds-menu__label">Our houses</span>
+                        <ul class="ds-menu__houses">
+                            <li><strong>Colombo</strong><span>Galle Road</span></li>
+                            <li><strong>Kandy</strong><span>Peradeniya Road</span></li>
+                            <li><strong>Galle</strong><span>Lighthouse Street</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="ds-menu__contact">
+                        <span class="ds-menu__label">Reception</span>
+                        <a href="tel:{{ config('hotel.hotline_tel') }}">{{ config('hotel.hotline') }}</a>
+                        <a href="mailto:{{ config('hotel.email') }}">{{ config('hotel.email') }}</a>
+                    </div>
+                @endunless
+
                 <div>
-                    <div class="container ds-utility__inner">
-                        <a class="ds-utility__item" href="tel:{{ config('hotel.hotline_tel') }}">
-                            <i class="bi bi-telephone-fill" aria-hidden="true"></i>
-                            <span>{{ config('hotel.hotline') }}</span>
-                        </a>
-                        <a class="ds-utility__item ds-utility__item--wide" href="mailto:{{ config('hotel.email') }}">
-                            <i class="bi bi-envelope-fill" aria-hidden="true"></i>
-                            <span>{{ config('hotel.email') }}</span>
-                        </a>
-                        <span class="ds-utility__note">Reception open 24 hours</span>
-                        <div class="ds-utility__social">
-                            {{-- A blank URL removes the channel rather than
-                                 rendering a dead icon. --}}
+                    <span class="ds-menu__label">Account</span>
+                    <div class="ds-menu__account">
+                        @auth
+                            @if (auth()->user()->role === 'customer')
+                                <a href="{{ route('customer.reservations') }}">My reservations</a>
+                                <a href="{{ route('customer.edit-profile') }}">Edit profile</a>
+                            @else
+                                <a href="{{ route('dashboard') }}">Dashboard</a>
+                            @endif
+                            <form method="POST" action="{{ route('logout') }}">
+                                @csrf
+                                <button type="submit">Sign out</button>
+                            </form>
+                        @else
+                            <a href="{{ route('login') }}">Sign in</a>
+                            <a href="{{ route('register') }}">Create account</a>
+                        @endauth
+                    </div>
+                </div>
+
+                @unless ($isStaff)
+                    <div>
+                        <span class="ds-menu__label">Follow</span>
+                        <div class="ds-menu__social">
                             @foreach (array_filter(config('hotel.social'), fn ($s) => filled($s['url'])) as $social)
                                 <a href="{{ $social['url'] }}" target="_blank" rel="noopener noreferrer"
                                    aria-label="{{ $social['label'] }}">
@@ -122,168 +247,16 @@
                             @endforeach
                         </div>
                     </div>
-                </div>
+                @endunless
             </div>
-        @endunless
+        </div>
+    </div>
 
-        <nav class="navbar navbar-expand-lg navbar-light" aria-label="Main">
-            <div class="container">
-                <a class="navbar-brand d-flex align-items-center gap-2" href="{{ route('home') }}">
-                    {{-- Text-free emblem; the name comes from config('app.name')
-                         so a rename never leaves a stale wordmark in an image. --}}
-                    <img src="{{ asset('images/logo.svg') }}" alt="" width="36" height="36" class="brand-mark">
-                    <span class="brand-name">{{ config('app.name') }}</span>
-                </a>
-
-                {{-- Actions sit outside the collapsing panel on desktop so the
-                     CTA is never hidden behind a hamburger. --}}
-                <div class="ds-nav-actions order-lg-3 ms-auto ms-lg-0">
-                    @unless ($isStaff)
-                        {{-- Never hidden behind the hamburger: booking is the
-                             one thing the bar exists for. It fits at 375px
-                             because the brand name gives way to the emblem
-                             there — see .brand-name in theme.css §4. --}}
-                        <a class="ds-nav-cta" href="{{ $bookHref }}">
-                            <span>Book now</span>
-                        </a>
-                    @endunless
-                    <button class="navbar-toggler" type="button"
-                            data-bs-toggle="offcanvas" data-bs-target="#dsNavPanel"
-                            aria-controls="dsNavPanel" aria-expanded="false" aria-label="Toggle navigation">
-                        <span class="navbar-toggler__bar"></span>
-                        <span class="navbar-toggler__bar"></span>
-                        <span class="navbar-toggler__bar"></span>
-                    </button>
-                </div>
-
-                {{-- Offcanvas below lg, a plain inline row from lg up. Bootstrap
-                     handles that switch natively with these two classes. --}}
-                <div class="offcanvas offcanvas-end ds-navpanel" tabindex="-1" id="dsNavPanel"
-                     aria-labelledby="dsNavPanelLabel" data-bs-scroll="false">
-                    <div class="offcanvas-header">
-                        <span class="brand-name" id="dsNavPanelLabel">{{ config('app.name') }}</span>
-                        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-                    </div>
-                    <div class="offcanvas-body">
-                        <ul class="navbar-nav ms-auto align-items-lg-center">
-                            @if ($isStaff)
-                                <li class="nav-item ds-navpanel__item" style="--i:0">
-                                    <a class="nav-link" href="{{ route('home') }}" @if (request()->routeIs('home')) aria-current="page" @endif>Home</a>
-                                </li>
-                                @if (auth()->user()->role === 'clerk')
-                                    <li class="nav-item ds-navpanel__item" style="--i:1">
-                                        <a class="nav-link" href="{{ route('clerk.dashboard') }}" @if (request()->routeIs('clerk.dashboard')) aria-current="page" @endif>Dashboard</a>
-                                    </li>
-                                    <li class="nav-item ds-navpanel__item" style="--i:2">
-                                        <a class="nav-link" href="{{ route('clerk.front-desk') }}" @if (request()->routeIs('clerk.front-desk')) aria-current="page" @endif>Front desk</a>
-                                    </li>
-                                @elseif (auth()->user()->role === 'manager')
-                                    <li class="nav-item ds-navpanel__item" style="--i:1">
-                                        <a class="nav-link" href="{{ route('manager.dashboard') }}" @if (request()->routeIs('manager.dashboard')) aria-current="page" @endif>Dashboard</a>
-                                    </li>
-                                    <li class="nav-item ds-navpanel__item" style="--i:2">
-                                        <a class="nav-link" href="{{ route('manager.reports') }}" @if (request()->routeIs('manager.reports')) aria-current="page" @endif>Reports</a>
-                                    </li>
-                                @else
-                                    <li class="nav-item ds-navpanel__item" style="--i:1">
-                                        <a class="nav-link" href="{{ route('admin.dashboard') }}" @if (request()->routeIs('admin.dashboard')) aria-current="page" @endif>Dashboard</a>
-                                    </li>
-                                @endif
-                            @else
-                                {{-- Stay: the accommodation types, which is what a
-                                     hotel's primary nav is actually for. --}}
-                                <li class="nav-item dropdown ds-navpanel__item" style="--i:0">
-                                    <a class="nav-link dropdown-toggle" href="#" role="button"
-                                       data-bs-toggle="dropdown" aria-expanded="false">
-                                        Stay
-                                        <svg class="ds-caret" width="9" height="6" viewBox="0 0 9 6" fill="none" aria-hidden="true">
-                                            <path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.2"/>
-                                        </svg>
-                                    </a>
-                                    <ul class="dropdown-menu">
-                                        <li>
-                                            <a class="dropdown-item" href="{{ $home }}#rooms">
-                                                Rooms
-                                                <small>Nightly rates across all three houses</small>
-                                            </a>
-                                        </li>
-                                        <li>
-                                            <a class="dropdown-item" href="{{ $home }}#residential-suites">
-                                                Residential suites
-                                                <small>Weekly and monthly stays</small>
-                                            </a>
-                                        </li>
-                                        @auth
-                                            @if (auth()->user()->role === 'customer')
-                                                <li>
-                                                    <a class="dropdown-item" href="{{ route('customer.reservations') }}">
-                                                        My reservations
-                                                        <small>View, amend or cancel a booking</small>
-                                                    </a>
-                                                </li>
-                                            @endif
-                                        @endauth
-                                    </ul>
-                                </li>
-                                <li class="nav-item ds-navpanel__item" style="--i:1">
-                                    <a class="nav-link" href="{{ $home }}#explore">Amenities</a>
-                                </li>
-                                <li class="nav-item ds-navpanel__item" style="--i:2">
-                                    <a class="nav-link" href="{{ $home }}#gallery">Gallery</a>
-                                </li>
-                                <li class="nav-item ds-navpanel__item" style="--i:3">
-                                    <a class="nav-link" href="#contact">Contact</a>
-                                </li>
-                            @endif
-
-                            @auth
-                                <li class="nav-item dropdown ds-navpanel__item" style="--i:4">
-                                    <a class="nav-link dropdown-toggle" href="#" role="button"
-                                       data-bs-toggle="dropdown" aria-expanded="false">
-                                        {{ Str::of(auth()->user()->name)->explode(' ')->first() }}
-                                        <svg class="ds-caret" width="9" height="6" viewBox="0 0 9 6" fill="none" aria-hidden="true">
-                                            <path d="M1 1l3.5 3.5L8 1" stroke="currentColor" stroke-width="1.2"/>
-                                        </svg>
-                                    </a>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        @if (auth()->user()->role === 'customer')
-                                            <li><a class="dropdown-item" href="{{ route('customer.reservations') }}">My reservations</a></li>
-                                            <li><a class="dropdown-item" href="{{ route('customer.edit-profile') }}">Edit profile</a></li>
-                                        @else
-                                            <li><a class="dropdown-item" href="{{ route('dashboard') }}">Dashboard</a></li>
-                                        @endif
-                                        <li>
-                                            <form method="POST" action="{{ route('logout') }}">
-                                                @csrf
-                                                <button type="submit" class="dropdown-item">Sign out</button>
-                                            </form>
-                                        </li>
-                                    </ul>
-                                </li>
-                            @else
-                                <li class="nav-item ds-navpanel__item" style="--i:4">
-                                    <a class="nav-link" href="{{ route('login') }}" @if (request()->routeIs('login')) aria-current="page" @endif>Sign in</a>
-                                </li>
-                                <li class="nav-item ds-navpanel__item d-lg-none" style="--i:5">
-                                    <a class="nav-link" href="{{ route('register') }}" @if (request()->routeIs('register')) aria-current="page" @endif>Create account</a>
-                                </li>
-                            @endauth
-                        </ul>
-
-                        {{-- No booking CTA in here: the one in the bar stays
-                             visible at every width, so a copy would only be a
-                             second identical call to action on the same screen. --}}
-                    </div>
-                </div>
-            </div>
-
-            {{-- Reading progress. Decorative, so it is allowed to simply not
-                 exist where scroll-driven animations aren't supported. --}}
-            <span class="ds-progress" aria-hidden="true"></span>
-        </nav>
-    </header>
-
-    <main id="main">
+    {{-- The header is fixed, so it is out of flow. A hero page wants exactly
+         that — the hero starts at y=0 and fills the screen with the bar over
+         it. Every other page has to reserve the bar's height itself, or its
+         first heading sits underneath the nav. --}}
+    <main id="main" @unless (View::hasSection('hero')) class="ds-main--offset" @endunless>
         {{-- Editorial pages need to bleed to the viewport edge, so they push
              into @section('fullwidth') and manage their own containers.
              Everything else keeps the original centred container. --}}
@@ -480,7 +453,7 @@
                 // --- header behaviour --------------------------------------
                 // Two things, off one scroll listener:
                 //   is-stuck  — past the first sliver of the page, so the bar
-                //               solidifies and the utility strip folds away.
+                //               firms up and the progress hairline appears.
                 //   is-hidden — retract on a downward scroll, return on any
                 //               upward one, so long pages read unobstructed.
                 var header = document.querySelector('[data-ds-header]');
@@ -488,17 +461,30 @@
                     var lastY = window.scrollY;
                     var ticking = false;
 
+                    // Only a header over a hero starts thin and earns its glass.
+                    // Everywhere else the bar sits on ivory and is frosted from
+                    // the first pixel, so CSS keeps --glass at 1.
+                    var overHero = header.classList.contains('ds-header--over');
+
+                    var GLASS_RUN = 90;   // px of scroll to reach full glass
+                    var STUCK_AT  = 72;
+
                     var update = function () {
                         ticking = false;
                         var y = window.scrollY;
-                        header.classList.toggle('is-stuck', y > 24);
+                        header.classList.toggle('is-stuck', y > STUCK_AT);
 
-                        // Never retract while the mobile panel or a dropdown is
-                        // open, or while focus is inside the header — sliding
-                        // the bar out from under an open menu or a focused link
-                        // is disorienting and can strand a keyboard user.
-                        var busy = document.body.classList.contains('offcanvas-open')
-                            || header.querySelector('.dropdown-menu.show, .offcanvas.show')
+                        if (overHero) {
+                            // Frost thickens with scroll rather than snapping
+                            // on. One custom property drives the bar's opacity.
+                            var glass = Math.min(y / GLASS_RUN, 1);
+                            header.style.setProperty('--glass', glass.toFixed(3));
+                        }
+
+                        // Never retract while the menu is open or while focus is
+                        // inside the bar — sliding it out from under an open
+                        // menu is disorienting and can strand a keyboard user.
+                        var busy = document.body.classList.contains('ds-menu-open')
                             || header.contains(document.activeElement);
 
                         // Only past a screenful, so short scrolls near the top
@@ -519,15 +505,112 @@
 
                     update();
                     window.addEventListener('scroll', onScroll, { passive: true });
+                }
 
-                    // The panel is a sibling concern: keep the bar down and the
-                    // toggler's aria-expanded honest while it is open.
-                    var panel = document.getElementById('dsNavPanel');
-                    if (panel) {
-                        panel.addEventListener('show.bs.offcanvas', function () {
-                            header.classList.remove('is-hidden');
+                // --- the bar's tilt ----------------------------------------
+                // The pane leans towards the cursor and a specular bloom
+                // follows it across the surface. Both are driven from four
+                // custom properties so the CSS owns every actual value and this
+                // only reports where the pointer is.
+                var bar = document.querySelector('[data-ds-bar]');
+                if (bar) {
+                    // Matches the CSS opt-outs exactly: no cursor to follow on
+                    // touch, and a tilting bar is the sort of movement reduced
+                    // motion is asking us not to make.
+                    var canTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches
+                        && !reduceMotion;
+
+                    if (canTilt) {
+                        var tiltPending = false, bx = 0, by = 0, px = 50, py = 50;
+
+                        var applyTilt = function () {
+                            tiltPending = false;
+                            bar.style.setProperty('--tx', bx.toFixed(4));
+                            bar.style.setProperty('--ty', by.toFixed(4));
+                            bar.style.setProperty('--px', px.toFixed(2));
+                            bar.style.setProperty('--py', py.toFixed(2));
+                        };
+
+                        bar.addEventListener('pointermove', function (e) {
+                            var r = bar.getBoundingClientRect();
+                            if (!r.width || !r.height) return;
+                            var nx = (e.clientX - r.left) / r.width;
+                            var ny = (e.clientY - r.top) / r.height;
+                            px = nx * 100;
+                            py = ny * 100;
+                            // -1..1 about the centre. The Y tilt is negated so
+                            // the pane leans *towards* the cursor rather than
+                            // away from it, which is what reads as physical.
+                            bx = (nx - 0.5) * 2;
+                            by = -(ny - 0.5) * 2;
+                            if (tiltPending) return;
+                            tiltPending = true;
+                            window.requestAnimationFrame(applyTilt);
+                        });
+
+                        bar.addEventListener('pointerleave', function () {
+                            bx = by = 0; px = py = 50;
+                            if (tiltPending) return;
+                            tiltPending = true;
+                            window.requestAnimationFrame(applyTilt);
                         });
                     }
+                }
+
+                // --- the menu ----------------------------------------------
+                // The whole navigation. Hand-rolled rather than a Bootstrap
+                // offcanvas because it is full-screen, ivory, and the same
+                // component at every width — none of which the offcanvas gives
+                // for free.
+                var menu = document.querySelector('[data-ds-menu]');
+                var openBtn = document.querySelector('[data-ds-menu-open]');
+                if (menu && openBtn) {
+                    var closeBtn = menu.querySelector('[data-ds-menu-close]');
+                    var lastFocus = null;
+
+                    var openMenu = function () {
+                        lastFocus = document.activeElement;
+                        menu.removeAttribute('inert');
+                        menu.classList.add('is-open');
+                        openBtn.setAttribute('aria-expanded', 'true');
+                        // Lock the page behind it, and keep the bar in place.
+                        document.body.classList.add('ds-menu-open');
+                        document.body.style.overflow = 'hidden';
+                        if (header) header.classList.remove('is-hidden');
+                        // The menu is visibility:hidden until .is-open lands,
+                        // and a hidden element cannot take focus. Reading a
+                        // layout property forces the style recalc first, so the
+                        // focus call below is not a no-op.
+                        void menu.offsetWidth;
+                        if (closeBtn) closeBtn.focus();
+                    };
+
+                    var closeMenu = function () {
+                        menu.classList.remove('is-open');
+                        openBtn.setAttribute('aria-expanded', 'false');
+                        document.body.classList.remove('ds-menu-open');
+                        document.body.style.overflow = '';
+                        // inert keeps the closed menu out of the tab order and
+                        // off the accessibility tree — visibility:hidden alone
+                        // does that for AT but not reliably for focus.
+                        menu.setAttribute('inert', '');
+                        if (lastFocus && lastFocus.focus) lastFocus.focus();
+                    };
+
+                    openBtn.addEventListener('click', openMenu);
+                    if (closeBtn) closeBtn.addEventListener('click', closeMenu);
+
+                    // Following a link inside the menu must close it, or the
+                    // overlay stays up over the destination on same-page anchors.
+                    menu.addEventListener('click', function (e) {
+                        if (e.target.closest('a[href]')) closeMenu();
+                    });
+
+                    document.addEventListener('keydown', function (e) {
+                        if (e.key === 'Escape' && menu.classList.contains('is-open')) {
+                            closeMenu();
+                        }
+                    });
                 }
 
                 // --- footer clock ------------------------------------------
