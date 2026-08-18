@@ -49,13 +49,6 @@
 
         .brand-mark {
             color: var(--ds-charcoal);
-            transition: transform var(--ds-med) var(--ds-ease),
-                        color var(--ds-med) var(--ds-ease);
-        }
-
-        .navbar-brand:hover .brand-mark {
-            transform: rotate(-8deg) scale(1.06);
-            color: var(--ds-wine);
         }
 
         .brand-name {
@@ -66,10 +59,7 @@
             text-transform: uppercase;
             color: var(--ds-charcoal);
             white-space: nowrap;
-            transition: color var(--ds-med) var(--ds-ease);
         }
-
-        .navbar-brand:hover .brand-name { color: var(--ds-wine); }
     </style>
 </head>
 <body>
@@ -102,7 +92,7 @@
     <header class="ds-header @hasSection('hero') ds-header--over @endif"
             id="top" data-ds-header>
 
-        <div class="ds-bar" data-ds-bar>
+        <div class="ds-bar">
             <a class="ds-bar__brand" href="{{ route('home') }}">
                 {{-- Text-free emblem; the name comes from config('app.name')
                      so a rename never leaves a stale wordmark in an image. --}}
@@ -129,13 +119,14 @@
                     </form>
                 </div>
             @else
-                {{-- The hotline reads as a phone icon and widens on hover to
-                     show the number, so it costs one icon of width but is never
-                     ambiguous once you approach it. --}}
+                {{-- The hotline is a bare phone glyph: one icon of width, no
+                     ring around it and nothing at all on hover — not a reveal,
+                     not a tooltip. The number rides on the href and the
+                     accessible name, and is written out in full in both the
+                     menu and the footer. --}}
                 <a class="ds-tel" href="tel:{{ config('hotel.hotline_tel') }}"
                    aria-label="Call reception on {{ config('hotel.hotline') }}">
                     <i class="bi bi-telephone-fill" aria-hidden="true"></i>
-                    <span>{{ config('hotel.hotline') }}</span>
                 </a>
 
                 <div class="ds-bar__icons">
@@ -505,56 +496,6 @@
 
                     update();
                     window.addEventListener('scroll', onScroll, { passive: true });
-                }
-
-                // --- the bar's tilt ----------------------------------------
-                // The pane leans towards the cursor and a specular bloom
-                // follows it across the surface. Both are driven from four
-                // custom properties so the CSS owns every actual value and this
-                // only reports where the pointer is.
-                var bar = document.querySelector('[data-ds-bar]');
-                if (bar) {
-                    // Matches the CSS opt-outs exactly: no cursor to follow on
-                    // touch, and a tilting bar is the sort of movement reduced
-                    // motion is asking us not to make.
-                    var canTilt = window.matchMedia('(hover: hover) and (pointer: fine)').matches
-                        && !reduceMotion;
-
-                    if (canTilt) {
-                        var tiltPending = false, bx = 0, by = 0, px = 50, py = 50;
-
-                        var applyTilt = function () {
-                            tiltPending = false;
-                            bar.style.setProperty('--tx', bx.toFixed(4));
-                            bar.style.setProperty('--ty', by.toFixed(4));
-                            bar.style.setProperty('--px', px.toFixed(2));
-                            bar.style.setProperty('--py', py.toFixed(2));
-                        };
-
-                        bar.addEventListener('pointermove', function (e) {
-                            var r = bar.getBoundingClientRect();
-                            if (!r.width || !r.height) return;
-                            var nx = (e.clientX - r.left) / r.width;
-                            var ny = (e.clientY - r.top) / r.height;
-                            px = nx * 100;
-                            py = ny * 100;
-                            // -1..1 about the centre. The Y tilt is negated so
-                            // the pane leans *towards* the cursor rather than
-                            // away from it, which is what reads as physical.
-                            bx = (nx - 0.5) * 2;
-                            by = -(ny - 0.5) * 2;
-                            if (tiltPending) return;
-                            tiltPending = true;
-                            window.requestAnimationFrame(applyTilt);
-                        });
-
-                        bar.addEventListener('pointerleave', function () {
-                            bx = by = 0; px = py = 50;
-                            if (tiltPending) return;
-                            tiltPending = true;
-                            window.requestAnimationFrame(applyTilt);
-                        });
-                    }
                 }
 
                 // --- the menu ----------------------------------------------

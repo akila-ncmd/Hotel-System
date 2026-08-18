@@ -324,10 +324,6 @@ html {
     transition: transform var(--ds-med) var(--ds-ease);
     will-change: transform;
     pointer-events: none;      /* the hero stays clickable either side of the bar */
-    /* The bar's tilt is a real 3D rotation, which needs a perspective on an
-       ancestor — without this the rotateX/rotateY below are flat and do
-       nothing at all. */
-    perspective: 900px;
 }
 .ds-header > * { pointer-events: auto; }
 
@@ -389,48 +385,15 @@ html {
     border: 1px solid rgba(255, 255, 255, calc(.35 + var(--glass) * .3));
     box-shadow: var(--ds-glass-lift);
 
-    /* --- the 3D ---
-       The bar is a physical pane tilting under the pointer, not a flat
-       rectangle. The rotation is tiny on purpose: past about 5° the text starts
-       to visibly keystone and the bar stops looking like glass and starts
-       looking like a CSS demo. preserve-3d lets the sheen sit on its own plane
-       just above the surface. */
-    transform-style: preserve-3d;
-    transform:
-        rotateX(calc(var(--ty, 0) * 3.2deg))
-        rotateY(calc(var(--tx, 0) * 4deg))
-        translateZ(0);
+    /* The pane is fixed. It used to tilt towards the cursor with a specular
+       bloom sweeping across it; both are gone deliberately. A navigation bar is
+       a frame you stop noticing, and one that leans and lights up under the
+       pointer keeps asking to be noticed. Nothing in this bar responds to hover
+       any more — no movement, no colour change. The only thing that still
+       animates is the frost, and that is driven by scroll position. */
     transition: background-color var(--ds-med) var(--ds-ease),
                 box-shadow var(--ds-med) var(--ds-ease),
-                border-color var(--ds-med) var(--ds-ease),
-                transform 400ms var(--ds-ease);
-}
-
-/* The specular sweep: a soft white bloom that follows the cursor across the
-   pane, which is what sells glass as a lit surface rather than a tinted one.
-   Pointer-events off so it never intercepts a click on the controls beneath. */
-.ds-bar::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    background: radial-gradient(
-        22rem circle at calc(var(--px, 50) * 1%) calc(var(--py, 50) * 1%),
-        rgba(255, 255, 255, .55),
-        rgba(255, 255, 255, .12) 38%,
-        transparent 62%);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity var(--ds-med) var(--ds-ease);
-    transform: translateZ(1px);
-}
-.ds-bar:hover::after { opacity: 1; }
-
-/* Touch has no cursor to track and reduced motion should not have the pane
-   swinging about, so both get a flat, still bar. */
-@media (prefers-reduced-motion: reduce), (hover: none), (pointer: coarse) {
-    .ds-bar { transform: none; transition: background-color var(--ds-med) var(--ds-ease); }
-    .ds-bar::after { display: none; }
+                border-color var(--ds-med) var(--ds-ease);
 }
 
 /* --- brand ------------------------------------------------------------ */
@@ -447,9 +410,7 @@ html {
 .ds-bar__brand .brand-mark {
     width: 26px; height: 26px;
     color: var(--ds-wine);
-    transition: transform var(--ds-med) var(--ds-ease);
 }
-.ds-bar__brand:hover .brand-mark { transform: rotate(-8deg) scale(1.08); }
 .ds-bar__brand .brand-name {
     font-family: var(--ds-serif);
     font-size: .95rem;
@@ -466,7 +427,8 @@ html {
 
 /* Bare glyphs — no disc, no ring. Three outlined circles in a row read as
    buttons competing with Book now; the marks alone are quieter and let the
-   brand and the CTA carry the bar. The gap does the separating instead. */
+   brand and the CTA carry the bar. The gap does the separating instead.
+   They do not change on hover; keyboard focus still shows the global ring. */
 .ds-bar__icons a {
     display: inline-flex;
     align-items: center;
@@ -475,73 +437,25 @@ html {
     font-size: 1.05rem;
     color: var(--ds-charcoal);
     text-decoration: none;
-    transition: color var(--ds-fast) var(--ds-ease),
-                transform var(--ds-fast) var(--ds-ease);
-}
-.ds-bar__icons a:hover {
-    color: var(--ds-wine);
-    transform: translateY(-2px);
 }
 
-/* The hotline keeps its outline: it is the one that expands, so it needs a
-   container edge to expand within. */
+/* The hotline. A bare phone glyph sized like the socials next to it and tinted
+   wine so it still reads as the one thing here you can act on. It has no ring
+   and no hover state: it used to sit in a pill that widened under the pointer
+   to reveal the number, which moved every control to its right. The number is
+   on the `tel:` href and in the link's accessible name, and is written out in
+   full in both the menu and the footer. */
 .ds-tel {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     height: 2.5rem;
-    border: 1px solid var(--ds-sand);
-    border-radius: 999px;
+    /* Never let the bar's flex layout squeeze the glyph. */
+    flex: 0 0 auto;
     color: var(--ds-charcoal);
     text-decoration: none;
-    transition: background-color var(--ds-fast) var(--ds-ease),
-                border-color var(--ds-fast) var(--ds-ease),
-                color var(--ds-fast) var(--ds-ease);
 }
-
-/* The hotline. A phone icon at rest that widens on hover to show the number,
-   so it costs the width of one icon but is never ambiguous once approached.
-   max-width is what animates — width cannot transition to `auto`, and the
-   number's own length decides how wide it needs to be. */
-.ds-tel {
-    /* Collapsed to exactly its own height, so it is a circle until it opens. */
-    max-width: 2.5rem;
-    /* Never let the bar's flex layout squeeze it. `overflow: hidden` makes a
-       flex item's automatic min-width resolve to 0, so without this the bar
-       silently crushes the hotline to a sliver whenever space is tight instead
-       of it staying the size the max-width above asks for. */
-    flex: 0 0 auto;
-    padding-left: .74rem;
-    overflow: hidden;
-    white-space: nowrap;
-    transition: max-width var(--ds-med) var(--ds-ease),
-                background-color var(--ds-fast) var(--ds-ease),
-                border-color var(--ds-fast) var(--ds-ease),
-                color var(--ds-fast) var(--ds-ease);
-}
-.ds-tel i { font-size: .88rem; color: var(--ds-wine); transition: color var(--ds-fast) var(--ds-ease); }
-.ds-tel span {
-    padding: 0 .85rem 0 .5rem;
-    font-size: .72rem;
-    font-weight: 500;
-    letter-spacing: var(--ds-track-ui);
-}
-/* focus-within so a keyboard reaches it too, not just a pointer. */
-.ds-tel:hover, .ds-tel:focus-within {
-    max-width: 16rem;
-    background: var(--ds-wine);
-    border-color: var(--ds-wine);
-    color: var(--ds-ivory);
-}
-.ds-tel:hover i, .ds-tel:focus-within i { color: var(--ds-ivory); }
-
-/* No hover to reveal it on a touch screen, so it simply stays open. */
-/* A touch screen has no hover to reveal the number with, so it stays open —
-   but only where there is room. On a phone the number plus Book now plus Menu
-   is wider than the bar, and there it stays a circular tap-to-call button,
-   which on a phone is the more useful control anyway. */
-@media (hover: none) and (min-width: 768px) {
-    .ds-tel { max-width: 16rem; }
-}
+.ds-tel i { font-size: 1.05rem; color: var(--ds-wine); }
 
 /* --- book + menu ------------------------------------------------------ */
 
@@ -559,9 +473,10 @@ html {
     text-transform: uppercase;
     text-decoration: none;
     white-space: nowrap;
-    transition: background-color var(--ds-med) var(--ds-ease);
 }
-.ds-book:hover, .ds-book:focus-visible { background: var(--ds-charcoal); }
+/* Wine at rest and wine under the pointer. It was darkening to charcoal on
+   hover, which reads as the primary action changing its mind. Keyboard focus is
+   covered by the global :focus-visible ring. */
 
 .ds-menu-btn {
     display: inline-flex;
@@ -579,19 +494,14 @@ html {
     letter-spacing: var(--ds-track-ui);
     text-transform: uppercase;
     cursor: pointer;
-    transition: background-color var(--ds-fast) var(--ds-ease),
-                border-color var(--ds-fast) var(--ds-ease);
 }
-.ds-menu-btn:hover { background: var(--ds-shell); border-color: var(--ds-clay); }
 
 .ds-menu-btn__glyph { display: grid; gap: 4px; }
 .ds-menu-btn__glyph span {
     display: block;
     width: 1.05rem; height: 1px;
     background: var(--ds-charcoal);
-    transition: transform var(--ds-med) var(--ds-ease);
 }
-.ds-menu-btn:hover .ds-menu-btn__glyph span:first-child { transform: translateX(3px); }
 
 /* --- staff bar -------------------------------------------------------- */
 
@@ -611,10 +521,10 @@ html {
     color: var(--ds-charcoal);
     text-decoration: none;
     cursor: pointer;
-    transition: color var(--ds-fast) var(--ds-ease);
 }
-.ds-bar__staff a:hover,
-.ds-bar__staff button:hover,
+/* Wine marks the page you are on, and nothing else. No hover tint: the bar is
+   static, and the current-page marker means more when it is the only thing
+   here wearing the accent. */
 .ds-bar__staff a[aria-current="page"] { color: var(--ds-wine); }
 
 /* --- the menu --------------------------------------------------------- */
